@@ -28,7 +28,7 @@ void loop() {
     dernierePrise = millis();
     SensorData data = sensor_service_read();
 
-    if (data.temperature == DEVICE_DISCONNECTED_C) {
+    if (data.temperature == TEMPERATURE_ERROR) {
         Serial.println("{\"erreur\":\"capteur de temperature non detecte\"}");
 
         return;

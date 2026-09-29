@@ -8,6 +8,7 @@
 #define SEUIL_BAS       26.0
 #define SEUIL_HAUT      28.0
 #define HYSTERESIS       0.3
+#define TEMPERATURE_ERROR -127.0
 
 // Fan
 #define VITESSE_MIN       80
