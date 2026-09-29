@@ -1,5 +1,5 @@
 #include "led.h"
-#include "../config/pins.h"
+#include "pins.h"
 #include <Arduino.h>
 
 void led_init() {

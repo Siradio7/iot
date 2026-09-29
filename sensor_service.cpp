@@ -1,8 +1,8 @@
 #include "sensor_service.h"
 
-#include "../config/config.h"
-#include "../sensors/temperature_sensor.h"
-#include "../sensors/light_sensor.h"
+#include "config.h"
+#include "temperature_sensor.h"
+#include "light_sensor.h"
 
 void sensor_service_init() {
     temperature_sensor_init();

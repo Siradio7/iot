@@ -1,5 +1,5 @@
 #include "light_sensor.h"
-#include "../config/pins.h"
+#include "pins.h"
 #include <Arduino.h>
 
 void light_sensor_init() {

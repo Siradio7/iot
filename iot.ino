@@ -1,9 +1,9 @@
-#include "config/config.h"
-#include "models/sensor_data.h"
-#include "services/sensor_service.h"
-#include "actuators/led.h"
-#include "actuators/fan.h"
-#include "actuators/led_strip.h"
+#include "config.h"
+#include "sensor_data.h"
+#include "sensor_service.h"
+#include "led.h"
+#include "fan.h"
+#include "led_strip.h"
 
 EtatRegulation etatCourant = REPOS;
 unsigned long dernierePrise = 0;

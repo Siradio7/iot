@@ -1,6 +1,6 @@
 #include "fan.h"
-#include "../config/pins.h"
-#include "../config/config.h"
+#include "pins.h"
+#include "config.h"
 #include <Arduino.h>
 
 void fan_init() {

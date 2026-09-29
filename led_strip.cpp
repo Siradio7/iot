@@ -1,7 +1,7 @@
 #include "led_strip.h"
 
-#include "../config/pins.h"
-#include "../config/config.h"
+#include "pins.h"
+#include "config.h"
 
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>

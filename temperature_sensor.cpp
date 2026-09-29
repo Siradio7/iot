@@ -1,6 +1,6 @@
 #include "temperature_sensor.h"
 
-#include "../config/pins.h"
+#include "pins.h"
 
 #include <Arduino.h>
 #include <OneWire.h>

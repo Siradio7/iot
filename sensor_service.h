@@ -1,7 +1,7 @@
 #ifndef SENSOR_SERVICE_H
 #define SENSOR_SERVICE_H
 
-#include "../models/sensor_data.h"
+#include "sensor_data.h"
 
 enum EtatRegulation {
     CHAUFFAGE,
