@@ -27,6 +27,8 @@ iot/
 ├── sensor_service.h
 ├── sensor_service.cpp
 ├── sensor_data.h
+├── makejson.h
+├── makejson.cpp
 └── README.md
 ```
 
@@ -89,6 +91,17 @@ struct SensorData {
 };
 ```
 
+### `makejson.h / makejson.cpp`
+
+Construit le statut de l'ESP au format JSON imposé par le cours (sections `status`, `location`, `regul`, `info`, `net`, `reporthost`) avec la bibliothèque ArduinoJson. Les valeurs constantes (identifiant, groupe, localisation, reporthost) sont définies dans `config.h`.
+
+Choix provisoires (à confirmer avec l'enseignant) :
+
+- `status.regul` vaut `RUNNING` quand le chauffage ou la climatisation est actif, `HALT` sinon ;
+- `status.fanspeed` est la valeur PWM du ventilateur (0 à 255) ;
+- les champs de `net` valent `NOP` tant que le WiFi n'est pas utilisé ;
+- `reporthost` reprend les constantes de l'exemple du cours (`127.0.0.1`, `1880`, `2`) afin de garder des nombres pour `target_port` et `sp`.
+
 ## Fonctionnement général
 
 ```text
@@ -140,6 +153,7 @@ Le projet utilise actuellement :
 - OneWire
 - DallasTemperature
 - Adafruit NeoPixel
+- ArduinoJson (Benoit Blanchon, version 7)
 
 Les bibliothèques peuvent être installées depuis :
 
@@ -215,8 +229,10 @@ et sélectionner `9600 baud`.
 Exemple de sortie :
 
 ```json
-{"temperature":24.83,"luminosite":3500,"etat":"CHAUFFAGE","ventilateur":0,"incendie":false}
+{"status":{"temperature":25.5625,"light":4095,"regul":"HALT","fire":false,"heat":"OFF","cold":"OFF","fanspeed":0},"location":{"room":"312","gps":{"lat":43.62454,"lon":7.050628},"address":"Les lucioles"},"regul":{"lt":25,"ht":26},"info":{"ident":"ESP32","user":"GR_F","loc":"A Biot"},"net":{"uptime":"NOP","ssid":"NOP","mac":"NOP","ip":"NOP"},"reporthost":{"target_ip":"127.0.0.1","target_port":1880,"sp":2}}
 ```
+
+Chaque mesure est envoyée sur une seule ligne, ce qui permet à Node-RED de découper les messages sur le retour à la ligne.
 
 ## Collaboration avec GitHub
 
@@ -328,5 +344,6 @@ Capteurs       → *_sensor.cpp
 Actionneurs    → led.cpp / fan.cpp / led_strip.cpp
 Logique        → sensor_service.cpp
 Données        → sensor_data.h
+Format JSON    → makejson.cpp
 Point d'entrée → iot.ino
 ```

@@ -4,6 +4,7 @@
 #include "led.h"
 #include "fan.h"
 #include "led_strip.h"
+#include "makejson.h"
 
 EtatRegulation etatCourant = REPOS;
 unsigned long dernierePrise = 0;
@@ -64,17 +65,8 @@ void loop() {
             break;
     }
 
-    // Journalisation
-    Serial.printf(
-        "{\"temperature\":%.2f,"
-        "\"luminosite\":%d,"
-        "\"etat\":\"%s\","
-        "\"ventilateur\":%d,"
-        "\"incendie\":%s}\n",
-        data.temperature,
-        data.luminosite,
-        sensor_service_state_name(etatCourant),
-        vitesse,
-        incendie ? "true" : "false"
-    );
+    // Journalisation (une ligne JSON par mesure)
+    JsonDocument status = makeJSON_fromstatus(data, etatCourant, vitesse, incendie);
+    serializeJson(status, Serial);
+    Serial.println();
 }
