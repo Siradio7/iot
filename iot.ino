@@ -16,9 +16,6 @@ void setup() {
     led_init();
     fan_init();
     led_strip_init();
-
-    Serial.println("*** Regulation de temperature : demarrage ***");
-    Serial.printf("Seuil bas = %.1f C, seuil haut = %.1f C\n", SEUIL_BAS, SEUIL_HAUT);
 }
 
 void loop() {
