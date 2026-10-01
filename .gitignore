@@ -4,3 +4,4 @@ build/
 # Node-RED : on ne versionne que les flows
 nodered/data/*
 !nodered/data/flows.json
+.env
