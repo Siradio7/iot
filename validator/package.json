@@ -1,0 +1,20 @@
+{
+  "name": "esp32-validator",
+  "version": "1.0.0",
+  "description": "Validateur du statut JSON de l'ESP32 (TP2)",
+  "main": "validator.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "validate": "node validate.js",
+    "test": "node test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "ajv": "^8.20.0"
+  }
+}

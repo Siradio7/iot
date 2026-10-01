@@ -234,6 +234,50 @@ Exemple de sortie :
 
 Chaque mesure est envoyée sur une seule ligne, ce qui permet à Node-RED de découper les messages sur le retour à la ligne.
 
+## Validateur JSON
+
+Le dossier `validator/` contient un validateur en JavaScript (bibliothèque [Ajv](https://ajv.js.org/)) qui vérifie qu'un fichier JSON respecte le modèle du cours.
+
+```text
+validator/
+├── schema.json   → description du modèle (JSON Schema)
+├── validator.js  → fonctions de validation, réutilisables (serveur du TP5)
+├── validate.js   → programme en ligne de commande
+├── test.js       → vérifie tous les fichiers de examples/
+└── examples/     → JSON valides (valid_*) et volontairement faux (invalid_*)
+```
+
+Installation (une seule fois) :
+
+```bash
+cd validator
+npm install
+```
+
+Valider un ou plusieurs fichiers :
+
+```bash
+node validate.js examples/valid_esp.json
+```
+
+Pour valider la sortie réelle de l'ESP, copier une ligne du moniteur série dans un fichier (par exemple `examples/mon_esp.json`) puis :
+
+```bash
+node validate.js examples/mon_esp.json
+```
+
+Lancer tous les exemples :
+
+```bash
+npm test
+```
+
+Le validateur refuse notamment : un fichier absent ou vide, une syntaxe JSON incorrecte, une section ou un champ manquant, un champ non prévu, un mauvais type, une valeur non autorisée (`ON`/`OFF`, `RUNNING`/`HALT`) ou hors limites, une adresse MAC ou IP mal formée.
+
+## Configuration de NodeRED
+
+On installe docker
+
 ## Collaboration avec GitHub
 
 Le dépôt GitHub contient la version commune du projet. Chaque membre travaille de préférence sur sa propre branche.
