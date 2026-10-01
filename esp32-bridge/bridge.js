@@ -5,6 +5,7 @@
 // à Node-RED via un serveur TCP. Ce que Node-RED envoie est renvoyé à l'ESP32.
 //
 //   ESP32 ──USB──▶ bridge.js (Mac) ◀──TCP──▶ Node-RED (Docker)
+require('dotenv').config();
 
 const net = require('net');
 const { SerialPort, ReadlineParser } = require('serialport');
