@@ -1,0 +1,520 @@
+[
+    {
+        "id": "f1a0000000000001",
+        "type": "tab",
+        "label": "ESP32",
+        "disabled": false,
+        "info": "Réception du statut JSON de l'ESP32 via esp32-bridge (TCP)."
+    },
+    {
+        "id": "8aa220902773db44",
+        "type": "ui_tab",
+        "name": "ESP32",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "dd6ebb3fcdbab0cd",
+        "type": "ui_base",
+        "theme": {
+            "name": "theme-light",
+            "lightTheme": {
+                "default": "#0094CE",
+                "baseColor": "#0094CE",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": true,
+                "reset": false
+            },
+            "darkTheme": {
+                "default": "#097479",
+                "baseColor": "#097479",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": false
+            },
+            "customTheme": {
+                "name": "Untitled Theme 1",
+                "default": "#4B7930",
+                "baseColor": "#4B7930",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+            },
+            "themeState": {
+                "base-color": {
+                    "default": "#0094CE",
+                    "value": "#0094CE",
+                    "edited": false
+                },
+                "page-titlebar-backgroundColor": {
+                    "value": "#0094CE",
+                    "edited": false
+                },
+                "page-backgroundColor": {
+                    "value": "#fafafa",
+                    "edited": false
+                },
+                "page-sidebar-backgroundColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "group-textColor": {
+                    "value": "#1bbfff",
+                    "edited": false
+                },
+                "group-borderColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "group-backgroundColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "widget-textColor": {
+                    "value": "#111111",
+                    "edited": false
+                },
+                "widget-backgroundColor": {
+                    "value": "#0094ce",
+                    "edited": false
+                },
+                "widget-borderColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "base-font": {
+                    "value": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+                }
+            },
+            "angularTheme": {
+                "primary": "indigo",
+                "accents": "blue",
+                "warn": "red",
+                "background": "grey",
+                "palette": "light"
+            }
+        },
+        "site": {
+            "name": "Node-RED Dashboard",
+            "hideToolbar": "false",
+            "allowSwipe": "false",
+            "lockMenu": "false",
+            "allowTempTheme": "true",
+            "dateFormat": "DD/MM/YYYY",
+            "sizes": {
+                "sx": 48,
+                "sy": 48,
+                "gx": 6,
+                "gy": 6,
+                "cx": 6,
+                "cy": 6,
+                "px": 0,
+                "py": 0
+            }
+        }
+    },
+    {
+        "id": "95a1224444610586",
+        "type": "ui_group",
+        "name": "Alertes",
+        "tab": "8aa220902773db44",
+        "order": 10,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "b04beae8ac867c36",
+        "type": "ui_group",
+        "name": "État",
+        "tab": "8aa220902773db44",
+        "order": 13,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "02d50603170f3216",
+        "type": "ui_group",
+        "name": "Luminosité",
+        "tab": "8aa220902773db44",
+        "order": 14,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "dd15f993d546f1bc",
+        "type": "ui_group",
+        "name": "Graphiques",
+        "tab": "8aa220902773db44",
+        "order": 15,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "df493e23cf82a74e",
+        "type": "ui_group",
+        "name": "Temperature",
+        "tab": "8aa220902773db44",
+        "order": 16,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "f1ae1c170db00fd7",
+        "type": "ui_group",
+        "name": "Ventilateur",
+        "tab": "8aa220902773db44",
+        "order": 6,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "f1a0000000000002",
+        "type": "tcp in",
+        "z": "f1a0000000000001",
+        "name": "ESP32 (bridge)",
+        "server": "client",
+        "host": "host.docker.internal",
+        "port": "5001",
+        "datamode": "stream",
+        "datatype": "utf8",
+        "newline": "\\n",
+        "topic": "",
+        "trim": true,
+        "base64": false,
+        "tls": "",
+        "x": 140,
+        "y": 120,
+        "wires": [
+            [
+                "f1a0000000000003"
+            ]
+        ]
+    },
+    {
+        "id": "f1a0000000000003",
+        "type": "json",
+        "z": "f1a0000000000001",
+        "name": "json",
+        "property": "payload",
+        "action": "obj",
+        "pretty": false,
+        "x": 330,
+        "y": 120,
+        "wires": [
+            [
+                "d21ae1b7b12f8fa0",
+                "18e4be6e4ebddcc8"
+            ]
+        ]
+    },
+    {
+        "id": "36894a01d7cb42c1",
+        "type": "ui_gauge",
+        "z": "f1a0000000000001",
+        "name": "",
+        "group": "df493e23cf82a74e",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Temperature",
+        "label": " °C",
+        "format": "{{value | number:1}}",
+        "min": 0,
+        "max": "50",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 850,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "5e0f2e5fb7d06661",
+        "type": "ui_gauge",
+        "z": "f1a0000000000001",
+        "name": "",
+        "group": "02d50603170f3216",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Luminosité",
+        "label": "",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "4095",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 850,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "e6ff159e0445e90d",
+        "type": "ui_text",
+        "z": "f1a0000000000001",
+        "group": "b04beae8ac867c36",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "État",
+        "format": "{{msg.payload}}",
+        "layout": "row-center",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 830,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "897c459585dae392",
+        "type": "ui_chart",
+        "z": "f1a0000000000001",
+        "name": "",
+        "group": "dd15f993d546f1bc",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "label": "Évolution de la température",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 900,
+        "y": 80,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c4014069ca7bf18c",
+        "type": "ui_led",
+        "z": "f1a0000000000001",
+        "order": 1,
+        "group": "95a1224444610586",
+        "width": 0,
+        "height": 0,
+        "label": "Feu",
+        "labelPlacement": "left",
+        "labelAlignment": "left",
+        "colorForValue": [
+            {
+                "color": "#808080",
+                "value": "false",
+                "valueType": "bool"
+            },
+            {
+                "color": "#0000ff",
+                "value": "true",
+                "valueType": "bool"
+            }
+        ],
+        "allowColorForValueInMessage": false,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "Feu",
+        "x": 830,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "f8456f238a3175f9",
+        "type": "ui_led",
+        "z": "f1a0000000000001",
+        "order": 0,
+        "group": "95a1224444610586",
+        "width": 0,
+        "height": 0,
+        "label": "Clim",
+        "labelPlacement": "left",
+        "labelAlignment": "left",
+        "colorForValue": [
+            {
+                "color": "#808080",
+                "value": "false",
+                "valueType": "bool"
+            },
+            {
+                "color": "#008000",
+                "value": "true",
+                "valueType": "bool"
+            }
+        ],
+        "allowColorForValueInMessage": false,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "Clim",
+        "x": 830,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "6bdf934e648d1437",
+        "type": "ui_led",
+        "z": "f1a0000000000001",
+        "order": 1,
+        "group": "95a1224444610586",
+        "width": 0,
+        "height": 0,
+        "label": "Radiateur",
+        "labelPlacement": "left",
+        "labelAlignment": "left",
+        "colorForValue": [
+            {
+                "color": "#808080",
+                "value": "false",
+                "valueType": "bool"
+            },
+            {
+                "color": "#ff0000",
+                "value": "true",
+                "valueType": "bool"
+            }
+        ],
+        "allowColorForValueInMessage": false,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "Radiateur",
+        "x": 840,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "3e56d5ad125022e4",
+        "type": "ui_gauge",
+        "z": "f1a0000000000001",
+        "name": "",
+        "group": "f1ae1c170db00fd7",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Ventilateur",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 850,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "d21ae1b7b12f8fa0",
+        "type": "debug",
+        "z": "f1a0000000000001",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "18e4be6e4ebddcc8",
+        "type": "function",
+        "z": "f1a0000000000001",
+        "name": "Extraction statut",
+        "func": "const s = msg.payload.status;\n\nreturn [\n    { payload: s.temperature },                     // sortie 1 → jauge Temperature\n    { payload: s.temperature },                     // sortie 2 → courbe\n    { payload: s.light },                           // sortie 3 → jauge Luminosité\n    { payload: s.regul },                           // sortie 4 → texte État\n    { payload: s.fire },                            // sortie 5 → led Feu\n    { payload: s.cold === \"ON\" },                   // sortie 6 → led Clim\n    { payload: s.heat === \"ON\" },                   // sortie 7 → led Radiateur\n    { payload: Math.round(s.fanspeed * 100 / 255) } // sortie 8 → jauge Ventilateur\n];\n",
+        "outputs": 8,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 560,
+        "y": 220,
+        "wires": [
+            [
+                "36894a01d7cb42c1"
+            ],
+            [
+                "897c459585dae392"
+            ],
+            [
+                "5e0f2e5fb7d06661"
+            ],
+            [
+                "e6ff159e0445e90d"
+            ],
+            [
+                "c4014069ca7bf18c"
+            ],
+            [
+                "f8456f238a3175f9"
+            ],
+            [
+                "6bdf934e648d1437"
+            ],
+            [
+                "3e56d5ad125022e4"
+            ]
+        ]
+    }
+]

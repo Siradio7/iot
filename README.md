@@ -276,7 +276,63 @@ Le validateur refuse notamment : un fichier absent ou vide, une syntaxe JSON inc
 
 ## Configuration de NodeRED
 
-On installe docker
+Node-RED tourne dans Docker. Sur macOS, un conteneur n'a pas accès aux ports USB : le script `esp32-bridge/bridge.js` tourne donc sur le Mac, lit le port série de l'ESP32 et transmet chaque ligne JSON à Node-RED en TCP (port `5001`).
+
+```text
+ESP32 ──USB──▶ esp32-bridge (Mac) ◀──TCP 5001──▶ Node-RED (Docker, port 1880)
+```
+
+```text
+iot/
+├── docker-compose.yml   → lance Node-RED
+├── nodered/
+│   ├── Dockerfile       → image Node-RED + node-red-dashboard + node-red-contrib-ui-led
+│   └── data/flows.json  → flows Node-RED (seul fichier de data/ versionné)
+└── esp32-bridge/
+    └── bridge.js        → pont port série ⇄ TCP
+```
+
+### 1. Prérequis
+
+- Docker Desktop lancé ;
+- Node.js installé sur le Mac.
+
+### 2. Lancer le pont
+
+Fermer d'abord le moniteur série d'Arduino IDE : un seul programme peut utiliser le port série à la fois.
+
+```bash
+cd esp32-bridge
+npm install      # une seule fois
+npm start
+```
+
+Le port série et le port TCP peuvent être changés si besoin :
+
+```bash
+SERIAL_PORT=/dev/cu.usbserial-0002 npm start
+```
+
+### 3. Lancer Node-RED
+
+Dans un autre terminal, depuis le dossier `iot/` :
+
+```bash
+docker compose up -d --build
+```
+
+- éditeur : http://localhost:1880
+- tableau de bord : http://localhost:1880/ui
+
+Dans Node-RED, le nœud `tcp in` se connecte à `host.docker.internal:5001` (le Mac vu depuis le conteneur), découpe le flux sur `\n` puis le nœud `json` transforme chaque ligne en objet.
+
+Arrêter Node-RED :
+
+```bash
+docker compose down
+```
+
+Les flows sont enregistrés dans `nodered/data/flows.json` : après un `Deploy`, penser à commiter ce fichier pour le partager.
 
 ## Collaboration avec GitHub
 
