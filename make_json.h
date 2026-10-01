@@ -1,5 +1,5 @@
-#ifndef MAKEJSON_H
-#define MAKEJSON_H
+#ifndef MAKE_JSON_H
+#define MAKE_JSON_H
 
 #include "sensor_data.h"
 #include "sensor_service.h"

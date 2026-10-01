@@ -1,12 +1,12 @@
 services:
   node-red:
-    build: ./nodered
+    build: .
     container_name: node-red
     ports:
       - "1880:1880"
     volumes:
       # Flows et réglages de Node-RED, conservés dans le dépôt
-      - ./nodered/data:/data
+      - ./data:/data
     environment:
       - TZ=Europe/Paris
     restart: unless-stopped

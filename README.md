@@ -27,8 +27,8 @@ iot/
 ├── sensor_service.h
 ├── sensor_service.cpp
 ├── sensor_data.h
-├── makejson.h
-├── makejson.cpp
+├── make_json.h
+├── make_json.cpp
 └── README.md
 ```
 
@@ -91,7 +91,7 @@ struct SensorData {
 };
 ```
 
-### `makejson.h / makejson.cpp`
+### `make_json.h / make_json.cpp`
 
 Construit le statut de l'ESP au format JSON imposé par le cours (sections `status`, `location`, `regul`, `info`, `net`, `reporthost`) avec la bibliothèque ArduinoJson. Les valeurs constantes (identifiant, groupe, localisation, reporthost) sont définies dans `config.h`.
 
@@ -284,10 +284,10 @@ ESP32 ──USB──▶ esp32-bridge (Mac) ◀──TCP 5001──▶ Node-RED 
 
 ```text
 iot/
-├── docker-compose.yml   → lance Node-RED
 ├── nodered/
-│   ├── Dockerfile       → image Node-RED + node-red-dashboard + node-red-contrib-ui-led
-│   └── data/flows.json  → flows Node-RED (seul fichier de data/ versionné)
+│   ├── docker-compose.yml → lance Node-RED
+│   ├── Dockerfile         → image Node-RED + node-red-dashboard + node-red-contrib-ui-led
+│   └── data/flows.json    → flows Node-RED (seul fichier de data/ versionné)
 └── esp32-bridge/
     └── bridge.js        → pont port série ⇄ TCP
 ```
@@ -315,9 +315,10 @@ SERIAL_PORT=/dev/cu.usbserial-0002 npm start
 
 ### 3. Lancer Node-RED
 
-Dans un autre terminal, depuis le dossier `iot/` :
+Dans un autre terminal, depuis le dossier `nodered/` :
 
 ```bash
+cd nodered
 docker compose up -d --build
 ```
 
@@ -326,7 +327,7 @@ docker compose up -d --build
 
 Dans Node-RED, le nœud `tcp in` se connecte à `host.docker.internal:5001` (le Mac vu depuis le conteneur), découpe le flux sur `\n` puis le nœud `json` transforme chaque ligne en objet.
 
-Arrêter Node-RED :
+Arrêter Node-RED (depuis le dossier `nodered/`) :
 
 ```bash
 docker compose down
@@ -444,6 +445,6 @@ Capteurs       → *_sensor.cpp
 Actionneurs    → led.cpp / fan.cpp / led_strip.cpp
 Logique        → sensor_service.cpp
 Données        → sensor_data.h
-Format JSON    → makejson.cpp
+Format JSON    → make_json.cpp
 Point d'entrée → iot.ino
 ```
