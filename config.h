@@ -20,6 +20,7 @@
 
 // Fire detection
 #define SEUIL_INCENDIE 500
+#define NB_ECHANTILLONS_LUMIERE 5   // taille de la moyenne glissante de luminosite
 
 // NeoPixel
 #define LUMINOSITE_LEDS 50

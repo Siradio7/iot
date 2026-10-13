@@ -42,6 +42,11 @@ void loop() {
 
     bool incendie = sensor_service_fire_detected(data.luminosite);
 
+    // Incendie : arret du ventilateur pour ne pas attiser le feu
+    if (incendie) {
+        vitesse = 0;
+    }
+
     // Actionneurs
     led_climatisation(etatCourant == CLIMATISATION);
     led_radiateur(etatCourant == CHAUFFAGE);

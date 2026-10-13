@@ -73,7 +73,7 @@ Les GPIO sont définis dans `pins.h`. Adapter ces valeurs si le montage diffère
 
 Ne branchez pas directement un moteur, un radiateur ou un appareil secteur sur un GPIO. Utilisez des drivers et alimentations adaptés, reliez les masses lorsque le montage le requiert et vérifiez les tensions avant mise sous tension. Le code commande des sorties témoins et un signal PWM ; il ne fournit pas à lui seul l'électronique de puissance.
 
-La détection d'incendie est actuellement définie par `luminosite < 500` (`SEUIL_INCENDIE` dans `config.h`). Ce seuil dépend du capteur et du câblage : relevez les valeurs ADC de votre montage avant de vous y fier. L'entrée analogique utilise les valeurs 0 à 4095 de l'ESP32.
+La détection d'incendie est actuellement définie par `moyenne de luminosité < 500` (`SEUIL_INCENDIE` et `NB_ECHANTILLONS_LUMIERE` dans `config.h`) ; la valeur `light` du JSON est cette moyenne. Ce seuil dépend du capteur et du câblage : relevez les valeurs ADC de votre montage avant de vous y fier. L'entrée analogique utilise les valeurs 0 à 4095 de l'ESP32.
 
 ## Rôle des fichiers
 
@@ -199,7 +199,7 @@ Le DS18B20 est lu sur l'index 0 du bus. Si aucun capteur n'est détecté, le fir
 - Climatisation demandée au-dessus de `SEUIL_HAUT + HYSTERESIS` (26,3 °C par défaut).
 - Dans la zone intermédiaire, l'état précédent est conservé, sauf dans la zone neutre définie dans `sensor_service.cpp`.
 - En climatisation, le PWM augmente de `VITESSE_MIN` à `VITESSE_MAX` selon la température ; il est limité à 255.
-- L'alerte incendie s'active lorsque la lecture de luminosité est inférieure à `SEUIL_INCENDIE`.
+- L'alerte incendie s'active lorsque la moyenne glissante des `NB_ECHANTILLONS_LUMIERE` dernières lectures de luminosité (5 par défaut, soit environ 5 s) est inférieure à `SEUIL_INCENDIE`. La LED d'alerte s'allume et le ventilateur est arrêté tant que l'incendie est détecté.
 - La bande LED est rouge au-dessus du seuil haut, orange entre les deux seuils et verte sous le seuil bas. Elle suit les mêmes basculements avec hystérésis que la régulation, ce qui évite qu'elle clignote autour d'un seuil.
 
 Les seuils, la période de mesure, les GPIO et les champs d'identification du JSON se règlent dans `config.h` et `pins.h`.

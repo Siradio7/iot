@@ -13,7 +13,7 @@ SensorData sensor_service_read() {
     SensorData data;
 
     data.temperature = temperature_read();
-    data.luminosite = light_sensor_read();
+    data.luminosite = light_sensor_read_average();
 
     return data;
 }
