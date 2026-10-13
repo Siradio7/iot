@@ -9,6 +9,7 @@
 #include "fan.h"
 #include "led_strip.h"
 #include "make_json.h"
+#include "command.h"
 
 EtatRegulation etatCourant = REPOS;  // conserve d'une mesure a l'autre pour l'hysteresis
 unsigned long dernierePrise = 0;     // instant (ms) de la derniere mesure
@@ -23,6 +24,10 @@ void setup() {
 }
 
 void loop() {
+    // Commandes du dashboard : lues a chaque tour, avant l'attente de la periode,
+    // pour ne perdre aucun caractere recu
+    command_process();
+
     // Cadence de mesure non bloquante (pas de delay)
     if (millis() - dernierePrise < PERIODE_MESURE) {
         return;

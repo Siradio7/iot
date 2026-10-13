@@ -4,6 +4,10 @@
 #include "temperature_sensor.h"
 #include "light_sensor.h"
 
+// Seuils courants : initialises avec config.h, modifiables depuis le dashboard
+static float seuilBas = SEUIL_BAS;
+static float seuilHaut = SEUIL_HAUT;
+
 void sensor_service_init() {
     temperature_sensor_init();
     light_sensor_init();
@@ -18,6 +22,26 @@ SensorData sensor_service_read() {
     return data;
 }
 
+float sensor_service_low_threshold() {
+    return seuilBas;
+}
+
+float sensor_service_high_threshold() {
+    return seuilHaut;
+}
+
+// Les bornes evitent des valeurs absurdes, et low < high garde la logique de regulation coherente
+bool sensor_service_set_thresholds(float low, float high) {
+    if (low < SEUIL_MIN || high > SEUIL_MAX || low >= high) {
+        return false;
+    }
+
+    seuilBas = low;
+    seuilHaut = high;
+
+    return true;
+}
+
 // Regulation avec hysteresis (valeurs par defaut : seuils 25 / 26, hysteresis 0.3) :
 //
 //   T < 24.7          -> CHAUFFAGE
@@ -29,15 +53,15 @@ SensorData sensor_service_read() {
 // Conserver l'etat precedent pres des seuils evite que le chauffage ou la clim
 // s'allument et s'eteignent a chaque petite variation de la mesure.
 EtatRegulation sensor_service_decide(float temperature, EtatRegulation previousState) {
-    if (temperature > SEUIL_HAUT + HYSTERESIS) {
+    if (temperature > seuilHaut + HYSTERESIS) {
         return CLIMATISATION;
     }
 
-    if (temperature < SEUIL_BAS - HYSTERESIS) {
+    if (temperature < seuilBas - HYSTERESIS) {
         return CHAUFFAGE;
     }
 
-    bool zoneNeutre = (temperature < SEUIL_HAUT - HYSTERESIS) && (temperature > SEUIL_BAS + HYSTERESIS);
+    bool zoneNeutre = (temperature < seuilHaut - HYSTERESIS) && (temperature > seuilBas + HYSTERESIS);
 
     if (zoneNeutre) {
         return REPOS;
@@ -47,16 +71,16 @@ EtatRegulation sensor_service_decide(float temperature, EtatRegulation previousS
 }
 
 // Vitesse proportionnelle a l'ecart au seuil haut :
-//   T <= SEUIL_HAUT            -> 0 (arret)
+//   T <= seuil haut            -> 0 (arret)
 //   ecart juste au-dessus de 0 -> VITESSE_MIN (minimum pour que le ventilateur demarre)
 //   ecart >= ECART_VITESSE_MAX -> VITESSE_MAX
 // Entre les deux, la vitesse augmente lineairement.
 int sensor_service_fan_speed(float temperature) {
-    if (temperature <= SEUIL_HAUT) {
+    if (temperature <= seuilHaut) {
         return 0;
     }
 
-    float ecart = temperature - SEUIL_HAUT;
+    float ecart = temperature - seuilHaut;
 
     if (ecart > ECART_VITESSE_MAX) {
         ecart = ECART_VITESSE_MAX;

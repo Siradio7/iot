@@ -54,6 +54,8 @@ iot/
 ├── sensor_data.h
 ├── make_json.h
 ├── make_json.cpp
+├── command.h
+├── command.cpp
 └── README.md
 ```
 
@@ -145,6 +147,10 @@ Choix provisoires (à confirmer avec l'enseignant) :
 - les champs de `net` valent `NOP` tant que le WiFi n'est pas utilisé ;
 - `reporthost` reprend les constantes de l'exemple du cours (`127.0.0.1`, `1880`, `2`) afin de garder des nombres pour `target_port` et `sp`.
 
+### `command.h / command.cpp`
+
+Lit sans bloquer les commandes JSON reçues sur le port série (envoyées par le dashboard via le bridge) et applique les nouveaux seuils de régulation. Voir [Retour vers l'ESP](#retour-vers-lesp-seuils-depuis-le-dashboard).
+
 ## Fonctionnement général
 
 ```text
@@ -201,6 +207,8 @@ Le DS18B20 est lu sur l'index 0 du bus. Si aucun capteur n'est détecté, le fir
 - En climatisation, le PWM augmente de `VITESSE_MIN` à `VITESSE_MAX` selon la température ; il est limité à 255.
 - L'alerte incendie s'active lorsque la moyenne glissante des `NB_ECHANTILLONS_LUMIERE` dernières lectures de luminosité (5 par défaut, soit environ 5 s) est inférieure à `SEUIL_INCENDIE`. La LED d'alerte s'allume et le ventilateur est arrêté tant que l'incendie est détecté.
 - La bande LED est rouge au-dessus du seuil haut, orange entre les deux seuils et verte sous le seuil bas. Elle suit les mêmes basculements avec hystérésis que la régulation, ce qui évite qu'elle clignote autour d'un seuil.
+
+`SEUIL_BAS` et `SEUIL_HAUT` sont les seuils **au démarrage** : ils peuvent ensuite être modifiés depuis le dashboard (voir [Retour vers l'ESP](#retour-vers-lesp-seuils-depuis-le-dashboard)). Les seuils réellement appliqués sont renvoyés dans `regul.lt` et `regul.ht` du JSON.
 
 Les seuils, la période de mesure, les GPIO et les champs d'identification du JSON se règlent dans `config.h` et `pins.h`.
 
@@ -263,6 +271,32 @@ npm start
 ```
 
 Le bridge affiche la connexion série, puis les lignes reçues de l'ESP32. Il écoute le port TCP 5001 et relaie les lignes vers Node-RED. Les variables `SERIAL_PORT`, `BAUD_RATE` et `TCP_PORT` peuvent aussi être fournies dans l'environnement du processus.
+
+### Retour vers l'ESP (seuils depuis le dashboard)
+
+Le dashboard peut modifier les seuils de régulation pendant que l'ESP tourne :
+
+```text
+slider (dashboard) → Node-RED (tcp out) → bridge (TCP 5001) → port série → ESP32
+```
+
+Format d'une commande : une ligne JSON terminée par `\n`, avec les clés `lt` (seuil bas) et/ou `ht` (seuil haut) de la section `regul` du modèle du cours :
+
+```json
+{"ht":27}
+{"lt":24}
+{"lt":24,"ht":27}
+```
+
+Règles appliquées par `command.cpp` :
+
+- les valeurs doivent être des nombres, compris entre `SEUIL_MIN` et `SEUIL_MAX` (15 et 35 °C) ;
+- le seuil bas doit rester strictement inférieur au seuil haut ;
+- toute autre clé, un JSON invalide ou une ligne de plus de `COMMAND_BUFFER_SIZE` caractères est refusé.
+
+Une commande refusée ne modifie rien et l'ESP répond `{"erreur":"commande refusee : ..."}`. Une commande acceptée est visible dans les lignes JSON suivantes (`regul.lt`, `regul.ht`).
+
+Test sans Node-RED : bridge arrêté, ouvrir le moniteur série d'Arduino IDE (9600 bauds, fin de ligne « New Line ») et envoyer `{"ht":27}`.
 
 ### Arrêter les services
 

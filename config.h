@@ -7,15 +7,20 @@
 #define SERIAL_BAUDRATE 9600         // bauds, doit correspondre a BAUD_RATE du bridge
 
 // Regulation de temperature (en degres C)
+// SEUIL_BAS et SEUIL_HAUT sont les seuils au demarrage : le dashboard peut les modifier ensuite
 #define SEUIL_BAS       25.0         // en dessous : chauffage
 #define SEUIL_HAUT      26.0         // au-dessus : climatisation
 #define HYSTERESIS       0.3         // marge autour des seuils pour eviter les basculements repetes
 #define TEMPERATURE_ERROR -127.0     // valeur renvoyee par DallasTemperature si le capteur est absent
 
+// Bornes acceptees pour les seuils recus du dashboard (en degres C)
+#define SEUIL_MIN       15.0
+#define SEUIL_MAX       35.0
+
 // Ventilateur (rapport cyclique PWM de 0 a 255)
 #define VITESSE_MIN       80         // vitesse minimale pour que le ventilateur demarre
 #define VITESSE_MAX       255        // pleine vitesse
-#define ECART_VITESSE_MAX 5.0        // degres C au-dessus de SEUIL_HAUT pour atteindre VITESSE_MAX
+#define ECART_VITESSE_MAX 5.0        // degres C au-dessus du seuil haut pour atteindre VITESSE_MAX
 
 #define PWM_FREQUENCE  25000         // Hz, frequence standard des ventilateurs PWM
 #define PWM_RESOLUTION 8             // bits, soit des valeurs de 0 a 255
@@ -29,6 +34,9 @@
 
 // Mesure
 #define PERIODE_MESURE 1000          // ms entre deux mesures
+
+// Commandes recues sur le port serie (une ligne JSON)
+#define COMMAND_BUFFER_SIZE 64       // caracteres maximum par commande
 
 // Modele JSON du cours : section info
 #define INFO_IDENT "ESP32"

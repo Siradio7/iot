@@ -24,8 +24,8 @@ JsonDocument makeJSON_fromstatus(SensorData data, EtatRegulation etat, int fanSp
     location["address"] = LOCATION_ADDRESS;
 
     JsonObject regul = doc["regul"].to<JsonObject>();
-    regul["lt"] = SEUIL_BAS;
-    regul["ht"] = SEUIL_HAUT;
+    regul["lt"] = sensor_service_low_threshold();
+    regul["ht"] = sensor_service_high_threshold();
 
     JsonObject info = doc["info"].to<JsonObject>();
     info["ident"] = INFO_IDENT;

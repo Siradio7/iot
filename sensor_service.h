@@ -20,6 +20,14 @@ SensorData sensor_service_read();
 // Nouvel etat de regulation, avec hysteresis par rapport a l'etat precedent
 EtatRegulation sensor_service_decide(float temperature, EtatRegulation previousState);
 
+// Seuils courants (modifiables depuis le dashboard)
+float sensor_service_low_threshold();
+float sensor_service_high_threshold();
+
+// Applique de nouveaux seuils s'ils sont entre SEUIL_MIN et SEUIL_MAX et que low < high.
+// Retourne false sans rien changer sinon.
+bool sensor_service_set_thresholds(float low, float high);
+
 // Vitesse PWM du ventilateur (0 a 255), progressive au-dessus du seuil haut
 int sensor_service_fan_speed(float temperature);
 
