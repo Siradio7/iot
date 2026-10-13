@@ -1,3 +1,9 @@
+# Membres du groupe 6:
+
+1. Olesea Popa
+2. Mamadou Siradiou Diallo
+3. Boulerbah Yasser
+
 # IoT Project
 
 Projet de régulation de température autour d'un ESP32, développé avec Arduino IDE (groupe GR_F).
