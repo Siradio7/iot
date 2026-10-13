@@ -2,9 +2,9 @@
 #define LED_STRIP_H
 
 enum StripColor {
-    STRIP_GREEN,
-    STRIP_BLUE,
-    STRIP_RED
+    STRIP_GREEN,   // temperature sous le seuil bas
+    STRIP_ORANGE,  // temperature entre les deux seuils
+    STRIP_RED      // temperature au-dessus du seuil haut
 };
 
 void led_strip_init();

@@ -48,17 +48,18 @@ void loop() {
     led_alerte_feu(incendie);
     fan_set_speed(vitesse);
 
-    // Bande LED
+    // Bande LED : couleur selon la temperature, avec l'hysteresis de la regulation
+    // (rouge > seuil haut, orange entre les seuils, vert < seuil bas)
     switch (etatCourant) {
         case CLIMATISATION:
             led_strip_set_color(STRIP_RED);
             break;
         case CHAUFFAGE:
-            led_strip_set_color(STRIP_BLUE);
+            led_strip_set_color(STRIP_GREEN);
             break;
         case REPOS:
         default:
-            led_strip_set_color(STRIP_GREEN);
+            led_strip_set_color(STRIP_ORANGE);
             break;
     }
 

@@ -27,8 +27,9 @@ void led_strip_set_color(StripColor color) {
             rgb = strip.Color(255, 0, 0);
             break;
 
-        case STRIP_BLUE:
-            rgb = strip.Color(0, 0, 255);
+        case STRIP_ORANGE:
+            // Composante verte reduite : (255, 165, 0) tire vers le jaune sur une NeoPixel
+            rgb = strip.Color(255, 80, 0);
             break;
 
         case STRIP_GREEN:

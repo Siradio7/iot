@@ -200,6 +200,7 @@ Le DS18B20 est lu sur l'index 0 du bus. Si aucun capteur n'est détecté, le fir
 - Dans la zone intermédiaire, l'état précédent est conservé, sauf dans la zone neutre définie dans `sensor_service.cpp`.
 - En climatisation, le PWM augmente de `VITESSE_MIN` à `VITESSE_MAX` selon la température ; il est limité à 255.
 - L'alerte incendie s'active lorsque la lecture de luminosité est inférieure à `SEUIL_INCENDIE`.
+- La bande LED est rouge au-dessus du seuil haut, orange entre les deux seuils et verte sous le seuil bas. Elle suit les mêmes basculements avec hystérésis que la régulation, ce qui évite qu'elle clignote autour d'un seuil.
 
 Les seuils, la période de mesure, les GPIO et les champs d'identification du JSON se règlent dans `config.h` et `pins.h`.
 
