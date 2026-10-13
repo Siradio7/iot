@@ -1,4 +1,5 @@
 // Capteur de luminosite (photoresistance sur entree analogique).
+// Capteur inverse : plus de lumiere = valeur ADC plus basse.
 
 #ifndef LIGHT_SENSOR_H
 #define LIGHT_SENSOR_H

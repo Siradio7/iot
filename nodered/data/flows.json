@@ -667,7 +667,7 @@
         "max": "35",
         "step": "0.5",
         "className": "",
-        "x": 180,
+        "x": 140,
         "y": 680,
         "wires": [
             [
@@ -694,7 +694,7 @@
         "max": "35",
         "step": "0.5",
         "className": "",
-        "x": 180,
+        "x": 140,
         "y": 740,
         "wires": [
             [
@@ -714,8 +714,8 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 440,
-        "y": 710,
+        "x": 370,
+        "y": 700,
         "wires": [
             [
                 "e1d5740cd546a4ca"
@@ -731,10 +731,10 @@
         "port": "5001",
         "beserver": "client",
         "base64": false,
-        "end": false,
+        "end": true,
         "tls": "",
-        "x": 660,
-        "y": 710,
+        "x": 610,
+        "y": 700,
         "wires": []
     }
 ]

@@ -53,7 +53,7 @@ void loop() {
         vitesse = sensor_service_fan_speed(data.temperature);
     }
 
-    bool incendie = sensor_service_fire_detected(data.luminosite);
+    bool incendie = sensor_service_fire_detected(data);
 
     // Incendie : arret du ventilateur pour ne pas attiser le feu
     if (incendie) {

@@ -1,61 +1,174 @@
 # IoT Project
 
-Projet de régulation IoT autour d'un ESP32, développé avec Arduino IDE. Le dépôt contient le firmware, un bridge série/TCP pour macOS, un flow Node-RED sous Docker et un validateur du JSON émis par le firmware.
+Projet de régulation de température autour d'un ESP32, développé avec Arduino IDE (groupe GR_F).
+
+L'ESP32 mesure la température et la luminosité, pilote un chauffage, une climatisation, un ventilateur, une bande de LEDs et une alerte incendie, et envoie son état au format JSON du cours. Un tableau de bord Node-RED affiche cet état et permet de modifier les seuils de régulation à distance.
+
+```text
+ESP32 ──USB série──▶ esp32-bridge (Mac) ──TCP 5001──▶ Node-RED (Docker) ──▶ tableau de bord
+      ◀─────────────────────────────────────────────────── seuils (curseurs)
+```
+
+Sommaire :
+
+- [Démarrage rapide](#démarrage-rapide-macos)
+- [Guide de test (critères d'évaluation)](#guide-de-test-critères-dévaluation)
+- [Structure du projet](#structure-du-projet) et [rôle des fichiers](#rôle-des-fichiers)
+- [Firmware Arduino](#firmware-arduino) : [régulation](#régulation), [détection d'incendie](#détection-dincendie), [JSON envoyé](#json-envoyé-par-lesp)
+- [Validateur JSON](#validateur-json)
+- [Bridge et Node-RED](#bridge-et-node-red) : [tableau de bord](#tableau-de-bord), [retour vers l'ESP](#retour-vers-lesp-seuils-depuis-le-dashboard)
+- [Dépannage](#dépannage)
 
 ## Démarrage rapide (macOS)
 
-1. Compiler et téléverser le sketch depuis Arduino IDE (voir [Firmware Arduino](#firmware-arduino)).
-2. Fermer le moniteur série Arduino : le bridge doit être le seul programme qui ouvre le port USB.
-3. Dans un terminal, lancer Node-RED :
+Prérequis : Arduino IDE 2 avec le support ESP32 et les bibliothèques (voir [Prérequis firmware](#prérequis-firmware)), Docker Desktop démarré, Node.js 20 ou plus récent.
+
+1. **Téléverser le firmware** : ouvrir `iot.ino` dans Arduino IDE, choisir la carte et le port, cliquer sur **Téléverser**.
+2. **Fermer le moniteur série** d'Arduino IDE : un seul programme peut utiliser le port USB à la fois.
+3. **Lancer Node-RED**, depuis la racine du dépôt :
 
     ```bash
     cd nodered
     docker compose up -d --build
     ```
 
-4. Dans un autre terminal, configurer le port série et lancer le bridge :
+4. **Lancer le bridge**, dans un autre terminal, depuis la racine du dépôt :
 
     ```bash
     cd esp32-bridge
-    ls /dev/cu.*
-    # Renseigner le port détecté dans .env (voir Bridge et Node-RED)
-    npm ci
+    npm ci        # une seule fois
     npm start
     ```
 
-5. Ouvrir <http://localhost:1880/ui> pour le tableau de bord ou <http://localhost:1880> pour l'éditeur Node-RED.
+    Le port série par défaut est `/dev/cu.usbserial-0001`. S'il est différent (voir `ls /dev/cu.*`), le définir dans `esp32-bridge/.env` (voir [Lancer le bridge](#lancer-le-bridge-sérietcp)).
 
-Le chemin des données est `ESP32 --USB série--> bridge macOS --TCP:5001--> Node-RED (Docker)`. Le tableau de bord se met à jour lorsqu'une mesure JSON valide arrive. La compilation et le comportement électrique doivent être vérifiés avec la carte et les capteurs réellement utilisés.
+5. **Ouvrir le tableau de bord** : <http://localhost:1880/ui> (éditeur Node-RED : <http://localhost:1880>).
 
-Le projet n'implémente pas le Wi-Fi : les champs `net` du JSON valent `NOP`. `reporthost` est une métadonnée du modèle de cours et ne configure pas la connexion du bridge.
+Le terminal du bridge doit afficher `ESP32 connecté`, puis `Node-RED connecté`, puis une ligne `ESP32 → {"status":...}` par seconde. Le tableau de bord se remplit en quelques secondes.
+
+## Guide de test (critères d'évaluation)
+
+Ce guide reprend la grille d'évaluation, critère par critère. Il suppose que le [démarrage rapide](#démarrage-rapide-macos) est fait : firmware téléversé, Node-RED et bridge lancés, tableau de bord ouvert.
+
+**Où observer :**
+
+| Observation | Où |
+| --- | --- |
+| LEDs de la carte | LED rouge (GPIO 21, radiateur), LED verte (GPIO 19, clim), LED intégrée bleue (GPIO 2, incendie), bande de 5 LEDs (GPIO 13), ventilateur (GPIO 27) |
+| JSON brut envoyé chaque seconde | terminal du bridge : lignes `ESP32 → {...}` |
+| Tableau de bord | <http://localhost:1880/ui> |
+
+**Méthode : tester la régulation sans chauffer ni refroidir.** Les curseurs « Seuil haut » et « Seuil bas » du tableau de bord (carte Température) modifient les seuils de l'ESP en direct. Il suffit donc de placer les seuils au-dessus ou en dessous de la température actuelle de la pièce, notée **T** ci-dessous (jauge Température). Les textes « Seuil bas » / « Seuil haut » affichent les seuils **réellement appliqués** par l'ESP.
+
+> Le seuil bas doit toujours rester **inférieur** au seuil haut, sinon l'ESP refuse la commande. Pour monter les deux seuils, déplacer d'abord le seuil haut ; pour les descendre, déplacer d'abord le seuil bas.
+>
+> Au redémarrage de l'ESP (relance du bridge, téléversement), les seuils reviennent à 25 °C / 26 °C.
+
+### 1. Régulation (radiateur LED rouge, climatisation LED verte)
+
+| Étape | Curseurs (dans l'ordre) | Attendu sur la carte | Attendu sur le tableau de bord / JSON |
+| --- | --- | --- | --- |
+| Chauffage | seuil haut = T + 3, puis seuil bas = T + 2 | **LED rouge** allumée, LED verte éteinte, ventilateur arrêté | led Radiateur allumée, Mode `CHAUFFAGE` ; `"heat":"ON"`, `"regul":"RUNNING"` |
+| Repos | seuil bas = T − 1, puis seuil haut = T + 1 | LEDs rouge et verte éteintes, ventilateur arrêté | Mode `REPOS` ; `"heat":"OFF"`, `"cold":"OFF"`, `"regul":"HALT"` |
+| Climatisation | seuil bas = T − 4, puis seuil haut = T − 2 | **LED verte** allumée, LED rouge éteinte, ventilateur en marche | led Clim allumée, Mode `CLIMATISATION` ; `"cold":"ON"`, `"regul":"RUNNING"` |
+
+Les basculements utilisent une hystérésis de 0,3 °C (voir [Régulation](#régulation)) : près d'un seuil, l'état précédent est conservé.
+
+### 2. Ventilateur : régulation progressive
+
+En climatisation, la vitesse augmente avec l'écart entre T et le seuil haut. Partir de l'étape Climatisation ci-dessus, **descendre d'abord le seuil bas** à T − 6, puis changer le seuil haut :
+
+| Écart T − seuil haut | PWM (`fanspeed` du JSON) | Jauge Ventilateur |
+| --- | --- | --- |
+| 0 (ou clim maintenue par l'hystérésis) | 80 | 31 % |
+| 1 °C | 115 | 45 % |
+| 2 °C | 150 | 59 % |
+| 3 °C | 185 | 73 % |
+| 4 °C | 220 | 86 % |
+| 5 °C ou plus | 255 | 100 % |
+
+Le ventilateur est à 0 hors climatisation et en cas d'incendie.
+
+### 3. Bande de LEDs : trois couleurs selon la température
+
+| État (étapes du test 1) | Couleur de la bande |
+| --- | --- |
+| Climatisation (T au-dessus du seuil haut) | **rouge** |
+| Repos (T entre les seuils) | **orange** |
+| Chauffage (T sous le seuil bas) | **vert** |
+
+### 4. Incendie : LED 2 et arrêt du ventilateur
+
+La règle et ses choix sont détaillés dans [Détection d'incendie](#détection-dincendie). Il faut de la **lumière forte et de la chaleur en même temps**. Après le démarrage de l'ESP, attendre environ 30 s.
+
+| Test | Attendu |
+| --- | --- |
+| Lampe (téléphone) collée au capteur de lumière, seule | pas d'incendie : `"fire":false` |
+| Capteur de température chauffé seul (le tenir dans la main) au-delà de 28 °C | pas d'incendie |
+| Lampe **et** capteur de température chauffé, au moins 5 s | **LED bleue (GPIO 2) allumée**, led Feu du tableau de bord allumée, `"fire":true` |
+| Même test pendant la climatisation (étape 3 du test 1) | le **ventilateur s'arrête** (`"fanspeed":0`) alors que `"cold"` reste `"ON"` |
+| Flash d'une seconde | pas d'incendie (moyennes glissantes) |
+| Retirer lampe et chaleur | l'alerte s'éteint après quelques secondes |
+
+La lampe doit éclairer plus fort que la lumière ambiante : en plein soleil, faire le test à l'ombre.
+
+**Méthode (moyenne)** : la luminosité et la température sont chacune moyennées sur les 5 dernières mesures (`light_sensor.cpp`, `sensor_service.cpp`), et la lumière est comparée à une référence de lumière ambiante.
+
+### 5. JSON : bibliothèque et validateur
+
+| Test | Attendu |
+| --- | --- |
+| Lire une ligne `ESP32 → {...}` dans le terminal du bridge | une ligne JSON par seconde au format du cours (voir [JSON envoyé](#json-envoyé-par-lesp)), construite avec ArduinoJson dans `make_json.cpp` |
+| `cd validator && npm ci && npm test` | `Tous les tests passent.` : 2 JSON valides acceptés, 11 JSON non conformes refusés avec la raison |
+| Copier une ligne réelle (sans `ESP32 → `) dans un fichier, puis `node validate.js chemin/fichier.json` dans `validator/` | `✅ ... : VALIDE` |
+| Valider n'importe quel autre fichier JSON | `✅ VALIDE` ou `❌ NON VALIDE` avec la liste des erreurs ; aucun plantage (fichier absent, vide, mal formé) |
+
+### 6. Tableau de bord : informations et retour vers l'ESP
+
+| Test | Attendu |
+| --- | --- |
+| Ouvrir <http://localhost:1880/ui> | les cartes décrites dans [Tableau de bord](#tableau-de-bord) se mettent à jour chaque seconde |
+| Déplacer le curseur Seuil bas, puis Seuil haut (seuil bas < seuil haut) | le terminal du bridge affiche `Node-RED → {"lt":...}` / `{"ht":...}`, puis les textes Seuil bas / Seuil haut prennent les nouvelles valeurs (`regul.lt` / `regul.ht` du JSON) |
+| Mettre le seuil bas au-dessus du seuil haut | commande refusée : les textes ne changent pas, Node-RED affiche un avertissement `commande refusee` |
+
+Test du retour vers l'ESP sans Node-RED : bridge arrêté, moniteur série d'Arduino IDE à 9600 bauds avec la fin de ligne « New Line », envoyer `{"lt":22,"ht":24}` puis `{"ht":"abc"}` (refusée).
+
+### 7. Code : structure et commentaires
+
+- Un module par capteur ou actionneur (`*_sensor`, `led`, `fan`, `led_strip`), la logique dans `sensor_service`, le JSON dans `make_json`, les commandes reçues dans `command` ; `iot.ino` ne fait qu'orchestrer (voir [Rôle des fichiers](#rôle-des-fichiers)).
+- Tous les GPIO sont dans `pins.h`, tous les réglages (avec leur unité) dans `config.h`.
+- Chaque fichier commence par un commentaire de rôle ; les choix non évidents (hystérésis, vitesse du ventilateur, détection d'incendie, lecture des commandes) sont expliqués dans le code.
 
 ## Structure du projet
 
-Les fichiers `.cpp` et `.h` sont placés à la racine du sketch afin de rester compatibles avec le fonctionnement d'Arduino IDE.
+Les fichiers `.cpp` et `.h` du firmware sont à la racine du sketch, comme l'exige Arduino IDE. Les autres dossiers ne sont pas compilés par Arduino IDE.
 
 ```text
 iot/
-│
-├── iot.ino
-├── config.h
-├── pins.h
-├── temperature_sensor.h
-├── temperature_sensor.cpp
-├── light_sensor.h
-├── light_sensor.cpp
-├── led.h
-├── led.cpp
-├── fan.h
-├── fan.cpp
-├── led_strip.h
-├── led_strip.cpp
-├── sensor_service.h
-├── sensor_service.cpp
+├── iot.ino                  point d'entrée du firmware
+├── config.h                 réglages (seuils, PWM, incendie, JSON...)
+├── pins.h                   brochage
+├── temperature_sensor.h/.cpp
+├── light_sensor.h/.cpp
+├── led.h/.cpp
+├── fan.h/.cpp
+├── led_strip.h/.cpp
+├── sensor_service.h/.cpp
 ├── sensor_data.h
-├── make_json.h
-├── make_json.cpp
-├── command.h
-├── command.cpp
+├── make_json.h/.cpp
+├── command.h/.cpp
+├── validator/               validateur JSON (Node.js, Ajv)
+│   ├── schema.json
+│   ├── validator.js
+│   ├── validate.js
+│   ├── test.js
+│   └── examples/
+├── esp32-bridge/            bridge série ⇄ TCP (Node.js)
+│   └── bridge.js
+├── nodered/                 Node-RED dans Docker
+│   ├── docker-compose.yml
+│   ├── Dockerfile
+│   └── data/flows.json      flow et tableau de bord (seul fichier de data/ versionné)
 └── README.md
 ```
 
@@ -66,120 +179,52 @@ Les GPIO sont définis dans `pins.h`. Adapter ces valeurs si le montage diffère
 | Fonction | GPIO | Remarque |
 | --- | ---: | --- |
 | Données du DS18B20 | 23 | Bus OneWire ; prévoir la résistance de rappel requise par le capteur, généralement 4,7 kΩ entre DATA et 3,3 V |
-| Entrée analogique de luminosité | 33 | Signal analogique dans la plage admissible de l'ESP32 (0 à 3,3 V) |
-| LED témoin climatisation | 19 | Sortie logique, utiliser une résistance avec une LED |
-| LED témoin chauffage | 21 | Sortie logique, utiliser une résistance avec une LED |
+| Entrée analogique de luminosité | 33 | Signal analogique de 0 à 3,3 V, lu de 0 à 4095 |
+| LED climatisation (verte) | 19 | Sortie logique, utiliser une résistance avec une LED |
+| LED chauffage / radiateur (rouge) | 21 | Sortie logique, utiliser une résistance avec une LED |
 | Commande PWM du ventilateur | 27 | GPIO de commande uniquement ; piloter le moteur avec un étage de puissance adapté |
 | Bande NeoPixel (5 LED) | 13 | Alimentation adaptée à la bande et masse commune avec l'ESP32 |
-| LED d'alerte incendie | 2 | Sortie logique, utiliser une résistance avec une LED ; le comportement au démarrage dépend de la carte |
+| LED d'alerte incendie (LED 2, bleue intégrée) | 2 | Le comportement au démarrage dépend de la carte |
 
-Ne branchez pas directement un moteur, un radiateur ou un appareil secteur sur un GPIO. Utilisez des drivers et alimentations adaptés, reliez les masses lorsque le montage le requiert et vérifiez les tensions avant mise sous tension. Le code commande des sorties témoins et un signal PWM ; il ne fournit pas à lui seul l'électronique de puissance.
+Ne branchez pas directement un moteur, un radiateur ou un appareil secteur sur un GPIO. Utilisez des drivers et alimentations adaptés, reliez les masses lorsque le montage le requiert et vérifiez les tensions avant mise sous tension.
 
-La détection d'incendie est actuellement définie par `moyenne de luminosité < 500` (`SEUIL_INCENDIE` et `NB_ECHANTILLONS_LUMIERE` dans `config.h`) ; la valeur `light` du JSON est cette moyenne. Ce seuil dépend du capteur et du câblage : relevez les valeurs ADC de votre montage avant de vous y fier. L'entrée analogique utilise les valeurs 0 à 4095 de l'ESP32.
+Le capteur de luminosité est **inversé** : plus de lumière donne une valeur ADC plus **basse**.
 
 ## Rôle des fichiers
 
-### `iot.ino`
-
-Point d'entrée du programme. Contient `setup()`, `loop()` et l'organisation générale du système. La logique détaillée reste dans les modules.
-
-### `config.h`
-
-Contient les paramètres du projet : seuils de température, hystérésis, paramètres PWM, seuil de détection d'incendie, période de mesure, etc.
-
-### `pins.h`
-
-Contient le brochage du projet. Les GPIO sont centralisés ici et ne doivent pas être répétés dans les autres fichiers.
-
-### `temperature_sensor.h / temperature_sensor.cpp`
-
-Gère le capteur de température DS18B20.
-
-### `light_sensor.h / light_sensor.cpp`
-
-Gère la lecture du capteur de luminosité.
-
-### `led.h / led.cpp`
-
-Gère les LEDs classiques utilisées pour la climatisation, le radiateur et l'alerte incendie.
-
-### `fan.h / fan.cpp`
-
-Gère le ventilateur et son signal PWM.
-
-### `led_strip.h / led_strip.cpp`
-
-Gère la bande de LEDs adressables et l'affichage de l'état de la régulation.
-
-### `sensor_service.h / sensor_service.cpp`
-
-Contient la logique principale de régulation : récupération des mesures, choix de l'état du système, calcul de la vitesse du ventilateur et détection d'incendie.
-
-Les états possibles sont :
-
-```text
-CHAUFFAGE
-REPOS
-CLIMATISATION
-```
-
-### `sensor_data.h`
-
-Contient les structures utilisées pour regrouper les données des capteurs.
-
-Exemple :
-
-```cpp
-struct SensorData {
-    float temperature;
-    int luminosite;
-};
-```
-
-### `make_json.h / make_json.cpp`
-
-Construit le statut de l'ESP au format JSON imposé par le cours (sections `status`, `location`, `regul`, `info`, `net`, `reporthost`) avec la bibliothèque ArduinoJson. Les valeurs constantes (identifiant, groupe, localisation, reporthost) sont définies dans `config.h`.
-
-Choix provisoires (à confirmer avec l'enseignant) :
-
-- `status.regul` vaut `RUNNING` quand le chauffage ou la climatisation est actif, `HALT` sinon ;
-- `status.fanspeed` est la valeur PWM du ventilateur (0 à 255) ;
-- les champs de `net` valent `NOP` tant que le WiFi n'est pas utilisé ;
-- `reporthost` reprend les constantes de l'exemple du cours (`127.0.0.1`, `1880`, `2`) afin de garder des nombres pour `target_port` et `sp`.
-
-### `command.h / command.cpp`
-
-Lit sans bloquer les commandes JSON reçues sur le port série (envoyées par le dashboard via le bridge) et applique les nouveaux seuils de régulation. Voir [Retour vers l'ESP](#retour-vers-lesp-seuils-depuis-le-dashboard).
+| Fichier | Rôle |
+| --- | --- |
+| `iot.ino` | Point d'entrée : `setup()` initialise les modules ; `loop()` lit les commandes, puis toutes les `PERIODE_MESURE` ms mesure, décide, pilote les actionneurs et envoie le JSON. |
+| `config.h` | Tous les réglages : seuils de température au démarrage et bornes, hystérésis, PWM, détection d'incendie, période de mesure, constantes du JSON. |
+| `pins.h` | Brochage ; les GPIO ne sont définis qu'ici. |
+| `temperature_sensor` | Lecture du DS18B20. |
+| `light_sensor` | Lecture de la photorésistance et moyenne glissante. |
+| `led` | LEDs témoins climatisation, radiateur et alerte incendie. |
+| `fan` | Ventilateur en PWM. |
+| `led_strip` | Bande NeoPixel en vert, orange ou rouge. |
+| `sensor_service` | Logique : mesures, décision de régulation avec hystérésis, vitesse du ventilateur, seuils modifiables, détection d'incendie. États : `CHAUFFAGE`, `REPOS`, `CLIMATISATION`. |
+| `sensor_data.h` | Structure `SensorData` (température, luminosité moyennée). |
+| `make_json` | Construction du statut JSON du cours avec ArduinoJson. |
+| `command` | Lecture non bloquante des commandes JSON reçues sur le port série et application des seuils. |
 
 ## Fonctionnement général
 
 ```text
-                 iot.ino
-                    │
-                    ▼
-             sensor_service
-                    │
-          ┌─────────┴─────────┐
-          ▼                   ▼
- temperature_sensor       light_sensor
-          │                   │
-          └─────────┬─────────┘
-                    ▼
-               SensorData
-                    │
-                    ▼
-             Décision système
-                    │
-        ┌───────────┼───────────┐
-        ▼           ▼           ▼
-    Chauffage      Repos    Climatisation
-        │           │           │
-        ▼           ▼           ▼
-    Radiateur     LEDs       Ventilateur
-                              + LED
+                         iot.ino (loop)
+                               │
+        ┌──────────────────────┼─────────────────────────┐
+        ▼                      ▼                         ▼
+     command          sensor_service_read          make_json
+ (seuils reçus)     temperature + light (moy.)   (ligne JSON → série)
+        │                      │
+        ▼                      ▼
+  seuil bas / haut ──▶  décision de régulation ──▶ CHAUFFAGE / REPOS / CLIMATISATION
+                               │                     │          │           │
+                               │                LED rouge   (éteint)   LED verte + ventilateur
+                               │                bande verte bande orange bande rouge
+                               ▼
+                     détection d'incendie ──▶ LED 2 + arrêt du ventilateur
 ```
-
-La mesure de luminosité est également utilisée pour la détection d'incendie.
 
 ## Firmware Arduino
 
@@ -193,46 +238,114 @@ Installer le paquet ESP32 depuis **Outils → Type de carte → Gestionnaire de 
 
 ### Compiler et téléverser
 
-Ouvrir `iot.ino` dans Arduino IDE. Le dossier du sketch et le fichier `.ino` portent tous deux le nom `iot`. Cliquer sur **Vérifier**, puis **Téléverser**.
+Ouvrir `iot.ino` dans Arduino IDE. Cliquer sur **Vérifier**, puis **Téléverser**. Arrêter le bridge (`Ctrl+C`) avant de téléverser : le port USB doit être libre.
 
-Le firmware ouvre le port série à **9600 bauds** et émet une ligne JSON par mesure, environ toutes les secondes. Pour vérifier la sortie, ouvrir le moniteur série à 9600 bauds. Le fermer avant de démarrer le bridge, car un seul processus peut utiliser le port à la fois.
+Le firmware ouvre le port série à **9600 bauds** et émet une ligne JSON par mesure, environ toutes les secondes. Pour la voir sans Node-RED, ouvrir le moniteur série à 9600 bauds (bridge arrêté).
 
-Le DS18B20 est lu sur l'index 0 du bus. Si aucun capteur n'est détecté, le firmware écrit `{"erreur":"capteur de temperature non detecte"}` au lieu du statut complet ; cette ligne ne respecte pas le schéma JSON du validateur et le tableau de bord n'aura pas de statut exploitable.
+Si le DS18B20 n'est pas détecté, le firmware écrit `{"erreur":"capteur de temperature non detecte"}` au lieu du statut et ne pilote pas les actionneurs. Le tableau de bord ignore ces lignes.
 
 ### Régulation
 
-- Chauffage demandé sous `SEUIL_BAS - HYSTERESIS` (24,7 °C par défaut).
-- Climatisation demandée au-dessus de `SEUIL_HAUT + HYSTERESIS` (26,3 °C par défaut).
-- Dans la zone intermédiaire, l'état précédent est conservé, sauf dans la zone neutre définie dans `sensor_service.cpp`.
-- En climatisation, le PWM augmente de `VITESSE_MIN` à `VITESSE_MAX` selon la température ; il est limité à 255. Tant que la climatisation reste active pendant l'hystérésis (température redescendue sous le seuil haut), le ventilateur tourne à `VITESSE_MIN`.
-- L'alerte incendie s'active lorsque la moyenne glissante des `NB_ECHANTILLONS_LUMIERE` dernières lectures de luminosité (5 par défaut, soit environ 5 s) est inférieure à `SEUIL_INCENDIE`. La LED d'alerte s'allume et le ventilateur est arrêté tant que l'incendie est détecté.
-- La bande LED est rouge au-dessus du seuil haut, orange entre les deux seuils et verte sous le seuil bas. Elle suit les mêmes basculements avec hystérésis que la régulation, ce qui évite qu'elle clignote autour d'un seuil.
+Avec les seuils par défaut (25 °C et 26 °C, hystérésis 0,3 °C) :
 
-`SEUIL_BAS` et `SEUIL_HAUT` sont les seuils **au démarrage** : ils peuvent ensuite être modifiés depuis le dashboard (voir [Retour vers l'ESP](#retour-vers-lesp-seuils-depuis-le-dashboard)). Les seuils réellement appliqués sont renvoyés dans `regul.lt` et `regul.ht` du JSON.
+```text
+T < 24,7          → CHAUFFAGE      (LED rouge, bande verte)
+24,7 ≤ T ≤ 25,3   → état précédent conservé
+25,3 < T < 25,7   → REPOS          (LEDs éteintes, bande orange)
+25,7 ≤ T ≤ 26,3   → état précédent conservé
+T > 26,3          → CLIMATISATION  (LED verte, ventilateur, bande rouge)
+```
 
-Les seuils, la période de mesure, les GPIO et les champs d'identification du JSON se règlent dans `config.h` et `pins.h`.
+- Conserver l'état précédent près des seuils évite que le chauffage ou la climatisation s'allument et s'éteignent à chaque petite variation de la mesure.
+- **Ventilateur** (climatisation uniquement) : `PWM = VITESSE_MIN + (T − seuil haut) / ECART_VITESSE_MAX × (VITESSE_MAX − VITESSE_MIN)`, borné entre 80 et 255 ; il atteint 255 à 5 °C au-dessus du seuil haut. Tant que la climatisation est maintenue par l'hystérésis sous le seuil haut, il tourne à `VITESSE_MIN`. Il est arrêté en cas d'incendie.
+- **Bande de LEDs** : rouge en climatisation, orange au repos, verte en chauffage ; elle suit les mêmes basculements avec hystérésis.
+- `SEUIL_BAS` et `SEUIL_HAUT` (`config.h`) sont les seuils **au démarrage** : le tableau de bord peut les modifier ensuite (voir [Retour vers l'ESP](#retour-vers-lesp-seuils-depuis-le-dashboard)).
+- La régulation utilise la température instantanée.
+
+### Détection d'incendie
+
+Un feu produit de la lumière **et** de la chaleur. L'incendie n'est déclaré que si les deux conditions sont vraies en même temps :
+
+```text
+incendie = lumière forte ET température moyenne > SEUIL_FEU_TEMPERATURE (28 °C)
+```
+
+| Condition | Calcul | Réglages (`config.h`) |
+| --- | --- | --- |
+| Chaleur | moyenne glissante des 5 dernières températures > 28 °C | `SEUIL_FEU_TEMPERATURE`, `NB_ECHANTILLONS_TEMPERATURE` |
+| Lumière forte | moyenne glissante des 5 dernières luminosités au moins 30 % plus basse qu'une **référence** de lumière ambiante | `VARIATION_LUMIERE_FEU`, `NB_ECHANTILLONS_LUMIERE` |
+
+Effets d'un incendie : la LED d'alerte (GPIO 2) s'allume, le ventilateur est arrêté pour ne pas attiser le feu, `status.fire` vaut `true` dans le JSON et la led Feu du tableau de bord s'allume.
+
+**Pourquoi ces choix :**
+
+- **Lumière ET chaleur** : une lampe seule ou une pièce chaude sans flamme ne déclenchent pas l'alerte.
+- **Moyennes glissantes** : un pic isolé (flash, reflet, lecture parasite) ne suffit pas ; il faut que la situation dure quelques secondes.
+- **Référence de lumière plutôt que seuil fixe** : la lumière ambiante varie énormément selon l'heure et le capteur (environ 100 en plein jour, 500 à 4000 à l'intérieur selon le montage). Le capteur étant inversé, « lumière forte » signifie une valeur nettement **plus basse** que la référence.
+
+**La référence de lumière :**
+
+- elle part de la première mesure, puis rattrape à chaque mesure 2 % de l'écart avec la lumière actuelle (`VITESSE_REFERENCE`) : le jour qui se lève ou la nuit qui tombe la déplacent sans alerte, alors qu'une lampe ou une flamme qui apparaît en quelques secondes crée un grand écart ;
+- tant que la lumière est forte, elle reste figée : on peut éclairer le capteur puis le chauffer, le feu reste détecté. Ce gel est limité à `GEL_REFERENCE_MAX` (120 mesures, environ 2 min) pour qu'un changement durable de la lumière du jour finisse par être considéré comme normal.
+
+Les tests sont décrits dans le [guide de test](#4-incendie--led-2-et-arrêt-du-ventilateur).
+
+**Limites connues :**
+
+- une lampe plus faible que la lumière du jour sur le capteur n'est pas détectée ;
+- un changement brutal de la lumière du jour (nuage qui s'écarte) dans une pièce déjà au-dessus de 28 °C peut donner une fausse alerte ;
+- 28 °C est volontairement bas pour pouvoir tester en chauffant le capteur à la main ; un détecteur réel utiliserait plutôt 45 à 50 °C, ou une hausse rapide de la température, et d'autres capteurs (fumée, flamme infrarouge).
+
+### JSON envoyé par l'ESP
+
+Chaque mesure produit une ligne JSON au format imposé par le cours, construite avec **ArduinoJson** (`make_json.cpp`). Exemple, mis en forme pour la lecture (l'ESP l'envoie sur une seule ligne) :
+
+```json
+{
+  "status": {"temperature": 25.5, "light": 520, "regul": "HALT", "fire": false,
+             "heat": "OFF", "cold": "OFF", "fanspeed": 0},
+  "location": {"room": "312", "gps": {"lat": 43.62454, "lon": 7.050628}, "address": "Les lucioles"},
+  "regul": {"lt": 25, "ht": 26},
+  "info": {"ident": "ESP32", "user": "GR_F", "loc": "A Biot"},
+  "net": {"uptime": "NOP", "ssid": "NOP", "mac": "NOP", "ip": "NOP"},
+  "reporthost": {"target_ip": "127.0.0.1", "target_port": 1880, "sp": 2}
+}
+```
+
+| Champ | Contenu |
+| --- | --- |
+| `status.temperature` | température instantanée (°C) |
+| `status.light` | luminosité moyennée (ADC 0 à 4095, capteur inversé) |
+| `status.regul` | `RUNNING` si chauffage ou climatisation actif, `HALT` au repos |
+| `status.fire` | incendie détecté |
+| `status.heat` / `status.cold` | `ON` / `OFF` |
+| `status.fanspeed` | PWM du ventilateur (0 à 255) |
+| `regul.lt` / `regul.ht` | seuils bas / haut **actuellement appliqués** |
+| `location`, `info`, `reporthost` | constantes définies dans `config.h` |
+| `net` | `NOP` : le Wi-Fi n'est pas utilisé |
+
+Choix d'interprétation du modèle (à confirmer avec l'enseignant) : la signification de `status.regul`, `fanspeed` en PWM plutôt qu'en tours par minute, `net` à `NOP`, `reporthost` aux valeurs de l'exemple du cours (descriptif, non utilisé par le bridge).
 
 ## Validateur JSON
 
-Le dossier `validator/` vérifie le statut avec Ajv et `schema.json`. Depuis ce dossier :
+Le dossier `validator/` vérifie qu'un fichier JSON respecte le modèle du cours, avec la bibliothèque [Ajv](https://ajv.js.org/) et le schéma `schema.json`.
 
 ```bash
-npm ci
-npm test
-npm run validate -- examples/valid_esp.json
+cd validator
+npm ci                                   # une seule fois
+npm test                                 # tous les exemples de examples/
+node validate.js examples/valid_esp.json # un ou plusieurs fichiers
 ```
 
-Pour valider une mesure réelle, enregistrer une ligne complète du moniteur série dans un fichier `.json`, puis passer son chemin à `npm run validate -- chemin/vers/mesure.json`. Une ligne d'erreur de capteur n'est pas un statut conforme. Le schéma rejette les champs manquants ou supplémentaires, les mauvais types, les énumérations et valeurs hors limites, ainsi que les formats IP/MAC invalides.
+- `npm test` vérifie que les fichiers `valid_*.json` sont acceptés et `invalid_*.json` refusés.
+- Pour une mesure réelle : copier une ligne complète du terminal du bridge (sans le préfixe `ESP32 → `) ou du moniteur série dans un fichier, puis `node validate.js chemin/vers/fichier.json`.
+- Le schéma exige toutes les sections et tous les champs, refuse les champs supplémentaires, les mauvais types, les valeurs non autorisées (`ON`/`OFF`, `RUNNING`/`HALT`), les valeurs hors limites et les formats MAC/IP invalides (`NOP` accepté).
+- Le programme ne plante jamais : fichier absent, dossier, fichier vide ou syntaxe invalide donnent un message clair. Code de sortie : 0 si tout est valide, 1 sinon.
+- `validator.js` ne fait aucune entrée/sortie et pourra être réutilisé par un serveur (TP5).
 
 ## Bridge et Node-RED
 
-Node-RED tourne dans Docker ; le bridge doit tourner sur le Mac car le conteneur n'accède pas directement au port USB. Le flow versionné dans `nodered/data/flows.json` se connecte en client TCP à `host.docker.internal:5001`, découpe le flux sur les retours à la ligne puis convertit le JSON. Docker Desktop pour macOS fournit cette adresse hôte.
-
-### Prérequis Docker et Node.js
-
-- Docker Desktop installé et démarré.
-- Node.js récent (Node.js 20 LTS ou plus récent) et npm.
-- L'ESP32 branché, firmware téléversé et moniteur série fermé.
+Node-RED tourne dans Docker ; sur macOS, un conteneur n'accède pas au port USB. Le bridge (`esp32-bridge/bridge.js`) tourne donc sur le Mac : il lit les lignes de l'ESP32, les envoie à Node-RED en TCP sur le port 5001, et renvoie à l'ESP32 ce que Node-RED lui envoie.
 
 ### Lancer Node-RED
 
@@ -241,28 +354,23 @@ Depuis la racine du dépôt :
 ```bash
 cd nodered
 docker compose up -d --build
-docker compose logs -f node-red
 ```
 
-L'image installe le tableau de bord classique `node-red-dashboard` et `node-red-contrib-ui-led`. Les données sont montées depuis `nodered/data/`. Accès : <http://localhost:1880> (éditeur) et <http://localhost:1880/ui> (tableau de bord).
+L'image (`nodered/Dockerfile`) ajoute à Node-RED les palettes `node-red-dashboard` et `node-red-contrib-ui-led`. Le flow est lu depuis `nodered/data/flows.json`. Accès : <http://localhost:1880> (éditeur) et <http://localhost:1880/ui> (tableau de bord).
+
+> Node-RED ne lit `flows.json` qu'au démarrage. Après un `git pull` qui modifie le flow, lancer `docker compose restart` dans `nodered/` puis recharger l'éditeur **avant** de cliquer sur Déployer, sinon l'ancienne version écrase la nouvelle.
 
 ### Lancer le bridge série/TCP
 
-Dans un autre terminal, repérer le port série macOS :
-
-```bash
-ls /dev/cu.*
-```
-
-Dans `esp32-bridge/.env` (fichier local ignoré par Git), définir le port correspondant à votre carte, par exemple :
+Valeurs par défaut : port série `/dev/cu.usbserial-0001`, 9600 bauds, port TCP 5001. Pour les changer, créer `esp32-bridge/.env` (fichier local ignoré par Git) :
 
 ```dotenv
-SERIAL_PORT=/dev/cu.usbmodem12301
+SERIAL_PORT=/dev/cu.usbserial-0001
 BAUD_RATE=9600
 TCP_PORT=5001
 ```
 
-Le nom exact dépend de la carte et du câble USB ; ne recopiez pas l'exemple sans vérifier la sortie de `ls`. Puis démarrer le bridge :
+Le nom du port dépend de la carte et du câble : le vérifier avec `ls /dev/cu.*`. Puis :
 
 ```bash
 cd esp32-bridge
@@ -270,14 +378,28 @@ npm ci
 npm start
 ```
 
-Le bridge affiche la connexion série, puis les lignes reçues de l'ESP32. Il écoute le port TCP 5001 et relaie les lignes vers Node-RED. Les variables `SERIAL_PORT`, `BAUD_RATE` et `TCP_PORT` peuvent aussi être fournies dans l'environnement du processus.
+Le bridge affiche `ESP32 →` pour chaque ligne reçue de l'ESP32 et `Node-RED →` pour chaque commande envoyée vers l'ESP32. Il se reconnecte seul si l'ESP32 est débranché ou si le port est occupé.
+
+> À l'ouverture du port série, l'ESP32 redémarre : ses seuils reviennent aux valeurs de `config.h` (25 °C / 26 °C).
+
+### Tableau de bord
+
+Le flow Node-RED : `tcp in` (connexion au bridge) → `json` (texte → objet) → fonction `Extraction statut` (une sortie par widget, ignore les lignes d'erreur) → widgets.
+
+| Carte | Contenu |
+| --- | --- |
+| Température | jauge (°C), seuils bas et haut appliqués par l'ESP, curseurs pour les modifier |
+| Ventilateur | jauge en % (PWM × 100 / 255) |
+| Luminosité | jauge (valeur moyennée, 0 à 4095) |
+| Alertes | leds Clim, Radiateur, Feu |
+| État | mode de régulation : `CHAUFFAGE`, `REPOS` ou `CLIMATISATION` |
+| Graphiques | courbe de la température |
+| Informations | pièce, adresse, identifiant de l'ESP et groupe |
 
 ### Retour vers l'ESP (seuils depuis le dashboard)
 
-Le dashboard peut modifier les seuils de régulation pendant que l'ESP tourne :
-
 ```text
-slider (dashboard) → Node-RED (tcp out) → bridge (TCP 5001) → port série → ESP32
+curseur → fonction Commande seuils → tcp out → bridge (TCP 5001) → port série → ESP32 (command.cpp)
 ```
 
 Format d'une commande : une ligne JSON terminée par `\n`, avec les clés `lt` (seuil bas) et/ou `ht` (seuil haut) de la section `regul` du modèle du cours :
@@ -294,60 +416,49 @@ Règles appliquées par `command.cpp` :
 - le seuil bas doit rester strictement inférieur au seuil haut ;
 - toute autre clé, un JSON invalide ou une ligne de plus de `COMMAND_BUFFER_SIZE` caractères est refusé.
 
-Une commande refusée ne modifie rien et l'ESP répond `{"erreur":"commande refusee : ..."}`. Une commande acceptée est visible dans les lignes JSON suivantes (`regul.lt`, `regul.ht`).
-
-Test sans Node-RED : bridge arrêté, ouvrir le moniteur série d'Arduino IDE (9600 bauds, fin de ligne « New Line ») et envoyer `{"ht":27}`.
+Une commande refusée ne modifie rien et l'ESP répond `{"erreur":"commande refusee : ..."}` (affiché comme avertissement dans Node-RED). Une commande acceptée apparaît dans `regul.lt` / `regul.ht` des lignes suivantes, donc dans les textes Seuil bas / Seuil haut du tableau de bord.
 
 ### Arrêter les services
 
-Arrêter le bridge avec `Ctrl+C`, puis arrêter Node-RED :
+Arrêter le bridge avec `Ctrl+C`, puis Node-RED :
 
 ```bash
 cd nodered
 docker compose down
 ```
 
-Les changements de flow déployés depuis l'éditeur sont persistés dans `nodered/data/flows.json`. Le `REPORT_TARGET_IP` et le port 1880 dans `config.h` appartiennent au JSON descriptif du cours ; le bridge actuel utilise le port TCP 5001 et ne consomme pas ces champs.
+Les changements de flow déployés depuis l'éditeur sont enregistrés dans `nodered/data/flows.json`.
 
-### Dépannage
+## Dépannage
 
 | Symptôme | Vérifications |
 | --- | --- |
-| Le bridge ne peut pas ouvrir le port série | Fermer le moniteur série, vérifier `ls /dev/cu.*`, puis corriger `SERIAL_PORT` dans `esp32-bridge/.env`. |
-| Le bridge indique une erreur à 9600 bauds ou ne reçoit rien | Vérifier le téléversement, le débit série à 9600 et que le port choisi correspond à l'ESP32. |
-| Node-RED ne reçoit pas de données | Vérifier que le conteneur tourne (`docker compose ps`), que le bridge écoute sur 5001 et que son log signale une connexion Node-RED. Relancer le bridge après Node-RED si besoin. |
-| Le tableau de bord ne montre pas de statut | Vérifier les lignes JSON du log du bridge ; une erreur de capteur n'a pas la structure attendue. Contrôler le DS18B20, son câblage et sa résistance de rappel. |
-| La détection incendie est toujours active ou inactive | Lire la valeur `light` du JSON et ajuster `SEUIL_INCENDIE` dans `config.h` pour le capteur installé. |
-| La bande LED ou le ventilateur ne réagit pas | Vérifier GPIO, alimentation, masse commune et étage de commande ; le GPIO ne peut pas fournir le courant d'un moteur ou d'une bande. |
+| Le bridge affiche `Resource busy` | Le moniteur série d'Arduino IDE (ou un téléversement) utilise le port : le fermer. |
+| Le bridge ne trouve pas le port | Vérifier `ls /dev/cu.*` et corriger `SERIAL_PORT` dans `esp32-bridge/.env`. |
+| Le téléversement échoue | Arrêter le bridge (`Ctrl+C`) avant de téléverser. |
+| Tableau de bord vide, nœud `ESP32 (bridge)` « Déconnecté » | Le bridge n'est pas lancé, ou Docker Desktop est arrêté (`docker compose ps` dans `nodered/`). Node-RED se reconnecte seul toutes les 10 s. |
+| Les curseurs n'ont aucun effet (pas de `Node-RED →` dans le bridge) | Le nœud `Vers ESP32` a perdu la connexion après une relance du bridge : cliquer sur Déployer (ou `docker compose restart`). |
+| Une commande est refusée | Respecter seuil bas < seuil haut, entre 15 et 35 °C (voir le message `commande refusee` dans Node-RED). |
+| Les seuils sont revenus à 25 / 26 | L'ESP a redémarré (relance du bridge, téléversement) : c'est normal. |
+| L'éditeur Node-RED montre un ancien flow | Après un `git pull`, `docker compose restart` dans `nodered/` puis recharger la page. |
+| La détection incendie ne se déclenche pas | Il faut une lumière forte **et** une température moyenne > 28 °C en même temps ; en plein soleil, tester à l'ombre. Ajuster `VARIATION_LUMIERE_FEU` et `SEUIL_FEU_TEMPERATURE` dans `config.h` si besoin. |
+| `{"erreur":"capteur de temperature non detecte"}` | Vérifier le câblage du DS18B20 et sa résistance de rappel. |
+| La bande LED ou le ventilateur ne réagit pas | Vérifier GPIO, alimentation, masse commune et étage de commande ; un GPIO ne peut pas fournir le courant d'un moteur ou d'une bande. |
 
 ## Collaboration avec GitHub
 
-Le dépôt GitHub contient la version commune du projet. Chaque membre travaille de préférence sur sa propre branche.
-
-### Récupérer le projet
+Le dépôt GitHub contient la version commune du projet ; la branche principale est `master`.
 
 ```bash
 git clone <URL_DU_REPOSITORY>
 cd iot
-```
-
-### Commencer une nouvelle fonctionnalité
-
-```bash
-git checkout main
-git pull
-git checkout -b feature/nom-de-la-fonctionnalite
-```
-
-### Envoyer son travail
-
-```bash
-git add .
-git commit -m "feat: add temperature sensor"
+git checkout -b feature/nom-de-la-fonctionnalite   # travailler sur une branche
+git add <fichiers>
+git commit -m "feat: description"
 git push -u origin feature/nom-de-la-fonctionnalite
 ```
 
-Avant la Pull Request, vérifier que le projet compile correctement avec Arduino IDE et lancer `npm test` dans `validator/`.
+Avant de fusionner : vérifier que le projet compile avec Arduino IDE et lancer `npm test` dans `validator/`. Après un `git pull` qui modifie `nodered/data/flows.json`, redémarrer Node-RED (voir [Lancer Node-RED](#lancer-node-red)).
 
 Conventions de commit : `feat` (fonctionnalité), `fix` (correction), `refactor` (structure), `docs` (documentation) et `chore` (maintenance).
 

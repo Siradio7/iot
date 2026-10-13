@@ -25,9 +25,16 @@
 #define PWM_FREQUENCE  25000         // Hz, frequence standard des ventilateurs PWM
 #define PWM_RESOLUTION 8             // bits, soit des valeurs de 0 a 255
 
-// Detection incendie (valeurs ADC de 0 a 4095)
-#define SEUIL_INCENDIE 500           // incendie si la luminosite moyenne passe sous ce seuil
-#define NB_ECHANTILLONS_LUMIERE 5   // taille de la moyenne glissante de luminosite
+// Detection incendie : lumiere forte ET chaleur, sur des moyennes glissantes
+// (le capteur de lumiere est inverse : plus de lumiere = valeur ADC plus basse)
+// La lumiere est comparee a une reference qui suit lentement la lumiere ambiante
+// (jour/nuit) : seule une augmentation brusque (lampe, flamme) compte comme lumiere forte.
+#define VARIATION_LUMIERE_FEU 0.3    // lumiere forte si la valeur est 30 % sous la reference
+#define VITESSE_REFERENCE     0.02   // part de l'ecart rattrapee par la reference a chaque mesure
+#define GEL_REFERENCE_MAX     120    // mesures (~2 min) pendant lesquelles la reference reste figee en lumiere forte
+#define NB_ECHANTILLONS_LUMIERE 5    // taille de la moyenne glissante de luminosite
+#define SEUIL_FEU_TEMPERATURE 28.0   // degres C : temperature moyenne au-dessus = chaleur (bas pour les tests)
+#define NB_ECHANTILLONS_TEMPERATURE 5 // taille de la moyenne glissante de temperature
 
 // Bande NeoPixel
 #define LUMINOSITE_LEDS 50           // luminosite globale de la bande (0 a 255)

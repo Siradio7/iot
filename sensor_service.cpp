@@ -8,6 +8,34 @@
 static float seuilBas = SEUIL_BAS;
 static float seuilHaut = SEUIL_HAUT;
 
+// Lumiere ambiante de reference (detection incendie), -1 = pas encore initialisee
+static float referenceLumiere = -1;
+static int mesuresEnLumiereForte = 0;
+
+// Buffer circulaire des dernieres temperatures (detection incendie)
+static float temperatures[NB_ECHANTILLONS_TEMPERATURE];
+static int indexTemperature = 0;
+static int nbTemperatures = 0;
+
+// Ajoute une temperature et retourne la moyenne des dernieres valeurs
+static float temperature_average(float temperature) {
+    temperatures[indexTemperature] = temperature;
+    indexTemperature = (indexTemperature + 1) % NB_ECHANTILLONS_TEMPERATURE;
+
+    // Au demarrage, on ne moyenne que les valeurs deja recues
+    if (nbTemperatures < NB_ECHANTILLONS_TEMPERATURE) {
+        nbTemperatures++;
+    }
+
+    float somme = 0;
+
+    for (int i = 0; i < nbTemperatures; i++) {
+        somme += temperatures[i];
+    }
+
+    return somme / nbTemperatures;
+}
+
 void sensor_service_init() {
     temperature_sensor_init();
     light_sensor_init();
@@ -92,10 +120,46 @@ int sensor_service_fan_speed(float temperature) {
     return VITESSE_MIN + (int)(proportion * (VITESSE_MAX - VITESSE_MIN));
 }
 
-// La luminosite recue est deja moyennee (voir light_sensor_read_average),
-// ce qui evite qu'une seule lecture parasite declenche l'alerte
-bool sensor_service_fire_detected(int luminosite) {
-    return luminosite < SEUIL_INCENDIE;
+// Un feu produit de la lumiere ET de la chaleur : exiger les deux evite les
+// fausses alertes (lampe seule, piece qui chauffe au soleil sans flamme).
+// Les deux grandeurs sont moyennees sur plusieurs mesures pour qu'un pic
+// isole (flash, reflet, lecture parasite) ne declenche pas l'alerte.
+// La luminosite recue est deja moyennee (voir light_sensor_read_average).
+//
+// Pas de seuil fixe pour la lumiere : elle varie enormement selon le jour et
+// le capteur. On la compare a une reference qui suit lentement la lumiere
+// ambiante. Le capteur est inverse (plus de lumiere = valeur plus basse), donc
+// "lumiere forte" = valeur nettement plus basse que la reference.
+bool sensor_service_fire_detected(SensorData data) {
+    float temperatureMoyenne = temperature_average(data.temperature);
+
+    // Premiere mesure : la reference part de la lumiere actuelle
+    if (referenceLumiere < 0) {
+        referenceLumiere = data.luminosite;
+    }
+
+    bool lumiereForte = data.luminosite < referenceLumiere * (1 - VARIATION_LUMIERE_FEU);
+    bool chaleur = temperatureMoyenne > SEUIL_FEU_TEMPERATURE;
+    bool incendie = lumiereForte && chaleur;
+
+    // La reference reste figee tant que la lumiere est forte : une lampe ou une
+    // flamme qui dure ne doit pas devenir la nouvelle "lumiere normale" (le feu
+    // reste detectable si la chaleur arrive apres la lumiere). Le gel est limite
+    // a GEL_REFERENCE_MAX mesures pour qu'un changement durable de la lumiere du
+    // jour (nuage qui s'ecarte) finisse par etre accepte comme normal.
+    if (lumiereForte) {
+        mesuresEnLumiereForte++;
+    } else {
+        mesuresEnLumiereForte = 0;
+    }
+
+    bool referenceFigee = lumiereForte && mesuresEnLumiereForte <= GEL_REFERENCE_MAX;
+
+    if (!referenceFigee) {
+        referenceLumiere += VITESSE_REFERENCE * (data.luminosite - referenceLumiere);
+    }
+
+    return incendie;
 }
 
 const char* sensor_service_state_name(EtatRegulation state) {

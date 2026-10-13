@@ -31,8 +31,10 @@ bool sensor_service_set_thresholds(float low, float high);
 // Vitesse PWM du ventilateur en climatisation (VITESSE_MIN a VITESSE_MAX), progressive au-dessus du seuil haut
 int sensor_service_fan_speed(float temperature);
 
-// Vrai si la luminosite passe sous SEUIL_INCENDIE
-bool sensor_service_fire_detected(int luminosite);
+// Vrai si la lumiere est nettement plus forte que la lumiere ambiante habituelle
+// (VARIATION_LUMIERE_FEU) ET la temperature moyenne au-dessus de SEUIL_FEU_TEMPERATURE.
+// A appeler une fois par mesure valide.
+bool sensor_service_fire_detected(SensorData data);
 
 // Nom lisible d'un etat (pour l'affichage)
 const char* sensor_service_state_name(EtatRegulation state);
