@@ -1,3 +1,5 @@
+// LEDs temoins : climatisation, radiateur et alerte incendie (LED 2).
+
 #ifndef LED_H
 #define LED_H
 

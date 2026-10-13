@@ -3,6 +3,7 @@
 #include "config.h"
 #include <Arduino.h>
 
+// PWM materiel de l'ESP32 (API ledc du core 3.x), ventilateur arrete au demarrage
 void fan_init() {
     ledcAttach(PIN_VENTILATEUR, PWM_FREQUENCE, PWM_RESOLUTION);
     ledcWrite(PIN_VENTILATEUR, 0);

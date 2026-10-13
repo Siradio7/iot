@@ -6,7 +6,8 @@
 
 #include <ArduinoJson.h>
 
-// Builds the ESP status following the JSON model given in the course
+// Construit le statut de l'ESP au format JSON du cours
+// (sections status, location, regul, info, net, reporthost)
 JsonDocument makeJSON_fromstatus(SensorData data, EtatRegulation etat, int fanSpeed, bool fireDetected);
 
 #endif

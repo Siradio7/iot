@@ -1,3 +1,5 @@
+// Bande NeoPixel : toute la bande affiche une meme couleur selon la temperature.
+
 #ifndef LED_STRIP_H
 #define LED_STRIP_H
 

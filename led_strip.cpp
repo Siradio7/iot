@@ -38,6 +38,7 @@ void led_strip_set_color(StripColor color) {
             break;
     }
 
+    // Meme couleur sur toutes les LED, puis envoi a la bande
     for (int i = 0; i < NB_LEDS; i++) {
         strip.setPixelColor(i, rgb);
     }

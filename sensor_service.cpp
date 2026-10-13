@@ -18,6 +18,16 @@ SensorData sensor_service_read() {
     return data;
 }
 
+// Regulation avec hysteresis (valeurs par defaut : seuils 25 / 26, hysteresis 0.3) :
+//
+//   T < 24.7          -> CHAUFFAGE
+//   24.7 <= T <= 25.3 -> etat precedent conserve
+//   25.3 <  T <  25.7 -> REPOS
+//   25.7 <= T <= 26.3 -> etat precedent conserve
+//   T > 26.3          -> CLIMATISATION
+//
+// Conserver l'etat precedent pres des seuils evite que le chauffage ou la clim
+// s'allument et s'eteignent a chaque petite variation de la mesure.
 EtatRegulation sensor_service_decide(float temperature, EtatRegulation previousState) {
     if (temperature > SEUIL_HAUT + HYSTERESIS) {
         return CLIMATISATION;
@@ -36,6 +46,11 @@ EtatRegulation sensor_service_decide(float temperature, EtatRegulation previousS
     return previousState;
 }
 
+// Vitesse proportionnelle a l'ecart au seuil haut :
+//   T <= SEUIL_HAUT            -> 0 (arret)
+//   ecart juste au-dessus de 0 -> VITESSE_MIN (minimum pour que le ventilateur demarre)
+//   ecart >= ECART_VITESSE_MAX -> VITESSE_MAX
+// Entre les deux, la vitesse augmente lineairement.
 int sensor_service_fan_speed(float temperature) {
     if (temperature <= SEUIL_HAUT) {
         return 0;
@@ -52,6 +67,8 @@ int sensor_service_fan_speed(float temperature) {
     return VITESSE_MIN + (int)(proportion * (VITESSE_MAX - VITESSE_MIN));
 }
 
+// La luminosite recue est deja moyennee (voir light_sensor_read_average),
+// ce qui evite qu'une seule lecture parasite declenche l'alerte
 bool sensor_service_fire_detected(int luminosite) {
     return luminosite < SEUIL_INCENDIE;
 }

@@ -1,3 +1,7 @@
+// Point d'entree du firmware : initialisation des modules puis boucle de regulation.
+// Chaque PERIODE_MESURE : lecture des capteurs, decision, commande des actionneurs
+// et envoi d'une ligne JSON sur le port serie (lue par esp32-bridge puis Node-RED).
+
 #include "config.h"
 #include "sensor_data.h"
 #include "sensor_service.h"
@@ -6,8 +10,8 @@
 #include "led_strip.h"
 #include "make_json.h"
 
-EtatRegulation etatCourant = REPOS;
-unsigned long dernierePrise = 0;
+EtatRegulation etatCourant = REPOS;  // conserve d'une mesure a l'autre pour l'hysteresis
+unsigned long dernierePrise = 0;     // instant (ms) de la derniere mesure
 
 void setup() {
     Serial.begin(SERIAL_BAUDRATE);
@@ -19,6 +23,7 @@ void setup() {
 }
 
 void loop() {
+    // Cadence de mesure non bloquante (pas de delay)
     if (millis() - dernierePrise < PERIODE_MESURE) {
         return;
     }
@@ -26,14 +31,17 @@ void loop() {
     dernierePrise = millis();
     SensorData data = sensor_service_read();
 
+    // Capteur absent ou debranche : on signale l'erreur sans piloter les actionneurs
     if (data.temperature == TEMPERATURE_ERROR) {
         Serial.println("{\"erreur\":\"capteur de temperature non detecte\"}");
 
         return;
     }
 
+    // Decision de regulation (chauffage / repos / climatisation)
     etatCourant = sensor_service_decide(data.temperature, etatCourant);
 
+    // Le ventilateur ne tourne qu'en climatisation, avec une vitesse progressive
     int vitesse = 0;
 
     if (etatCourant == CLIMATISATION) {
