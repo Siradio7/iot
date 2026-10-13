@@ -204,7 +204,7 @@ Le DS18B20 est lu sur l'index 0 du bus. Si aucun capteur n'est détecté, le fir
 - Chauffage demandé sous `SEUIL_BAS - HYSTERESIS` (24,7 °C par défaut).
 - Climatisation demandée au-dessus de `SEUIL_HAUT + HYSTERESIS` (26,3 °C par défaut).
 - Dans la zone intermédiaire, l'état précédent est conservé, sauf dans la zone neutre définie dans `sensor_service.cpp`.
-- En climatisation, le PWM augmente de `VITESSE_MIN` à `VITESSE_MAX` selon la température ; il est limité à 255.
+- En climatisation, le PWM augmente de `VITESSE_MIN` à `VITESSE_MAX` selon la température ; il est limité à 255. Tant que la climatisation reste active pendant l'hystérésis (température redescendue sous le seuil haut), le ventilateur tourne à `VITESSE_MIN`.
 - L'alerte incendie s'active lorsque la moyenne glissante des `NB_ECHANTILLONS_LUMIERE` dernières lectures de luminosité (5 par défaut, soit environ 5 s) est inférieure à `SEUIL_INCENDIE`. La LED d'alerte s'allume et le ventilateur est arrêté tant que l'incendie est détecté.
 - La bande LED est rouge au-dessus du seuil haut, orange entre les deux seuils et verte sous le seuil bas. Elle suit les mêmes basculements avec hystérésis que la régulation, ce qui évite qu'elle clignote autour d'un seuil.
 

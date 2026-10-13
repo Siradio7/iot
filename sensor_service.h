@@ -28,7 +28,7 @@ float sensor_service_high_threshold();
 // Retourne false sans rien changer sinon.
 bool sensor_service_set_thresholds(float low, float high);
 
-// Vitesse PWM du ventilateur (0 a 255), progressive au-dessus du seuil haut
+// Vitesse PWM du ventilateur en climatisation (VITESSE_MIN a VITESSE_MAX), progressive au-dessus du seuil haut
 int sensor_service_fan_speed(float temperature);
 
 // Vrai si la luminosite passe sous SEUIL_INCENDIE

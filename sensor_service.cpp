@@ -70,17 +70,18 @@ EtatRegulation sensor_service_decide(float temperature, EtatRegulation previousS
     return previousState;
 }
 
-// Vitesse proportionnelle a l'ecart au seuil haut :
-//   T <= seuil haut            -> 0 (arret)
-//   ecart juste au-dessus de 0 -> VITESSE_MIN (minimum pour que le ventilateur demarre)
+// Appelee uniquement en CLIMATISATION. Vitesse proportionnelle a l'ecart au seuil haut :
+//   T <= seuil haut            -> VITESSE_MIN (minimum pour que le ventilateur demarre)
 //   ecart >= ECART_VITESSE_MAX -> VITESSE_MAX
-// Entre les deux, la vitesse augmente lineairement.
+// Entre les deux, la vitesse augmente lineairement. Le cas T <= seuil haut arrive
+// pendant l'hysteresis (clim encore active entre 25.7 et 26 avec les seuils par defaut) : le
+// ventilateur reste alors au minimum au lieu de s'arreter.
 int sensor_service_fan_speed(float temperature) {
-    if (temperature <= seuilHaut) {
-        return 0;
-    }
-
     float ecart = temperature - seuilHaut;
+
+    if (ecart < 0) {
+        ecart = 0;
+    }
 
     if (ecart > ECART_VITESSE_MAX) {
         ecart = ECART_VITESSE_MAX;
