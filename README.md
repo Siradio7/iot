@@ -58,7 +58,7 @@ Ce guide reprend la grille d'évaluation, critère par critère. Il suppose que 
 | JSON brut envoyé chaque seconde | terminal du bridge : lignes `ESP32 → {...}` |
 | Tableau de bord | <http://localhost:1880/ui> |
 
-**Méthode : tester la régulation sans chauffer ni refroidir.** Les curseurs « Seuil haut » et « Seuil bas » du tableau de bord (carte Température) modifient les seuils de l'ESP en direct. Il suffit donc de placer les seuils au-dessus ou en dessous de la température actuelle de la pièce, notée **T** ci-dessous (jauge Température). Les textes « Seuil bas » / « Seuil haut » affichent les seuils **réellement appliqués** par l'ESP.
+**Méthode : tester la régulation sans chauffer ni refroidir.** Les curseurs « Seuil haut » et « Seuil bas » du tableau de bord (carte Seuils) modifient les seuils de l'ESP en direct. Il suffit donc de placer les seuils au-dessus ou en dessous de la température actuelle de la pièce, notée **T** ci-dessous (jauge Température). Les textes « Seuil bas » / « Seuil haut » affichent les seuils **réellement appliqués** par l'ESP.
 
 > Le seuil bas doit toujours rester **inférieur** au seuil haut, sinon l'ESP refuse la commande. Pour monter les deux seuils, déplacer d'abord le seuil haut ; pour les descendre, déplacer d'abord le seuil bas.
 >
@@ -68,9 +68,9 @@ Ce guide reprend la grille d'évaluation, critère par critère. Il suppose que 
 
 | Étape | Curseurs (dans l'ordre) | Attendu sur la carte | Attendu sur le tableau de bord / JSON |
 | --- | --- | --- | --- |
-| Chauffage | seuil haut = T + 3, puis seuil bas = T + 2 | **LED rouge** allumée, LED verte éteinte, ventilateur arrêté | led Radiateur allumée, Mode `CHAUFFAGE` ; `"heat":"ON"`, `"regul":"RUNNING"` |
-| Repos | seuil bas = T − 1, puis seuil haut = T + 1 | LEDs rouge et verte éteintes, ventilateur arrêté | Mode `REPOS` ; `"heat":"OFF"`, `"cold":"OFF"`, `"regul":"HALT"` |
-| Climatisation | seuil bas = T − 4, puis seuil haut = T − 2 | **LED verte** allumée, LED rouge éteinte, ventilateur en marche | led Clim allumée, Mode `CLIMATISATION` ; `"cold":"ON"`, `"regul":"RUNNING"` |
+| Chauffage | seuil haut = T + 3, puis seuil bas = T + 2 | **LED rouge** allumée, LED verte éteinte, ventilateur arrêté | bannière verte `CHAUFFAGE`, led Radiateur allumée ; `"heat":"ON"`, `"regul":"RUNNING"` |
+| Repos | seuil bas = T − 1, puis seuil haut = T + 1 | LEDs rouge et verte éteintes, ventilateur arrêté | bannière orange `REPOS` ; `"heat":"OFF"`, `"cold":"OFF"`, `"regul":"HALT"` |
+| Climatisation | seuil bas = T − 4, puis seuil haut = T − 2 | **LED verte** allumée, LED rouge éteinte, ventilateur en marche | bannière rouge `CLIMATISATION`, led Clim allumée ; `"cold":"ON"`, `"regul":"RUNNING"` |
 
 Les basculements utilisent une hystérésis de 0,3 °C (voir [Régulation](#régulation)) : près d'un seuil, l'état précédent est conservé.
 
@@ -105,7 +105,7 @@ La règle et ses choix sont détaillés dans [Détection d'incendie](#détection
 | --- | --- |
 | Lampe (téléphone) collée au capteur de lumière, seule | pas d'incendie : `"fire":false` |
 | Capteur de température chauffé seul (le tenir dans la main) au-delà de 28 °C | pas d'incendie |
-| Lampe **et** capteur de température chauffé, au moins 5 s | **LED bleue (GPIO 2) allumée**, led Feu du tableau de bord allumée, `"fire":true` |
+| Lampe **et** capteur de température chauffé, au moins 5 s | **LED bleue (GPIO 2) allumée**, bannière `INCENDIE` qui clignote, led Feu allumée, `"fire":true` |
 | Même test pendant la climatisation (étape 3 du test 1) | le **ventilateur s'arrête** (`"fanspeed":0`) alors que `"cold"` reste `"ON"` |
 | Flash d'une seconde | pas d'incendie (moyennes glissantes) |
 | Retirer lampe et chaleur | l'alerte s'éteint après quelques secondes |
@@ -386,15 +386,24 @@ Le bridge affiche `ESP32 →` pour chaque ligne reçue de l'ESP32 et `Node-RED �
 
 Le flow Node-RED : `tcp in` (connexion au bridge) → `json` (texte → objet) → fonction `Extraction statut` (une sortie par widget, ignore les lignes d'erreur) → widgets.
 
-| Carte | Contenu |
-| --- | --- |
-| Température | jauge (°C), seuils bas et haut appliqués par l'ESP, curseurs pour les modifier |
-| Ventilateur | jauge en % (PWM × 100 / 255) |
-| Luminosité | jauge (valeur moyennée, 0 à 4095) |
-| Alertes | leds Clim, Radiateur, Feu |
-| État | mode de régulation : `CHAUFFAGE`, `REPOS` ou `CLIMATISATION` |
-| Graphiques | courbe de la température |
-| Informations | pièce, adresse, identifiant de l'ESP et groupe |
+Les cartes forment une grille de 4 colonnes, sur 2 lignes de hauteur égale, dans un cadre :
+
+| Ligne | Carte | Contenu |
+| --- | --- | --- |
+| 1 | État du système | bannière d'état, leds Feu, Clim, Radiateur |
+| 1 | Température | jauge (°C) |
+| 1 | Ventilateur | jauge en % (PWM × 100 / 255) |
+| 1 | Luminosité | jauge (valeur moyennée, 0 à 4095) |
+| 2 | Historique (2 colonnes) | courbe de la température |
+| 2 | Seuils | seuil bas et seuil haut appliqués par l'ESP, chacun suivi de son curseur |
+| 2 | Informations | pièce, adresse, identifiant de l'ESP et groupe, heure de la dernière mesure reçue |
+
+Chaque widget a une taille fixe pour que les cartes d'une même ligne aient la même hauteur. La grille est prévue pour un écran d'au moins 1320 px de large.
+
+L'interface est personnalisée avec deux nœuds `ui_template` :
+
+- **Bannière d'état** : affiche le mode de régulation avec la même couleur que la bande LED (rouge `CLIMATISATION`, orange `REPOS`, vert `CHAUFFAGE`) et une explication ; en cas d'incendie, elle affiche `INCENDIE` en rouge foncé et clignote.
+- **Style du tableau de bord** : feuille CSS ajoutée à la page (cadre autour de la grille, fond, barre de titre, cartes arrondies avec ombre, titres des cartes, couleurs de la bannière).
 
 ### Retour vers l'ESP (seuils depuis le dashboard)
 
