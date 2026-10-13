@@ -7,6 +7,109 @@
         "info": "Réception du statut JSON de l'ESP32 via esp32-bridge (TCP)."
     },
     {
+        "id": "a1b2c3d4e5f60010",
+        "type": "comment",
+        "z": "f1a0000000000001",
+        "name": "Palettes requises : node-red-dashboard et node-red-contrib-ui-led (installées par nodered/Dockerfile)",
+        "info": "Si le flow est importé dans un autre Node-RED : menu ☰ > Gérer la palette > Installer, puis installer ces deux palettes. Les autres nœuds (tcp, json, function, debug) sont inclus dans Node-RED ; node-red-node-serialport n'est pas nécessaire (le port série est lu par esp32-bridge).",
+        "x": 469,
+        "y": 20,
+        "wires": []
+    },
+    {
+        "id": "a1b2c3d4e5f60001",
+        "type": "group",
+        "z": "f1a0000000000001",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "f1a0000000000002",
+            "f1a0000000000003",
+            "d21ae1b7b12f8fa0"
+        ],
+        "x": 35,
+        "y": 85,
+        "w": 590,
+        "h": 70
+    },
+    {
+        "id": "a1b2c3d4e5f60011",
+        "type": "comment",
+        "z": "f1a0000000000001",
+        "name": "Réception : une ligne JSON de l'ESP32 par message, via le bridge (TCP 5001)",
+        "info": "Node-RED tourne dans Docker et ne voit pas le port USB : esp32-bridge lit le port série sur le Mac et envoie chaque ligne en TCP.\nLe nœud json transforme le texte en objet. debug 1 sert au diagnostic.",
+        "x": 365,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "a1b2c3d4e5f60002",
+        "type": "group",
+        "z": "f1a0000000000001",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "18e4be6e4ebddcc8",
+            "36894a01d7cb42c1",
+            "897c459585dae392",
+            "5e0f2e5fb7d06661",
+            "e6ff159e0445e90d",
+            "c4014069ca7bf18c",
+            "f8456f238a3175f9",
+            "6bdf934e648d1437",
+            "3e56d5ad125022e4",
+            "a7c3e1f0b2d40002",
+            "a7c3e1f0b2d40003",
+            "a7c3e1f0b2d40004",
+            "a7c3e1f0b2d40005",
+            "a7c3e1f0b2d40006"
+        ],
+        "x": 435,
+        "y": 205,
+        "w": 630,
+        "h": 610
+    },
+    {
+        "id": "a1b2c3d4e5f60012",
+        "type": "comment",
+        "z": "f1a0000000000001",
+        "name": "Affichage : Extraction statut envoie chaque valeur du JSON à son widget",
+        "info": "Une sortie par widget (ordre commenté dans le code). Les lignes sans \"status\" (erreur capteur, commande refusée) sont ignorées et signalées par un avertissement.",
+        "x": 749,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "a1b2c3d4e5f60003",
+        "type": "group",
+        "z": "f1a0000000000001",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "5d803223d09d10c3",
+            "fb7e7f7bf3365834",
+            "77e4b017d17b7919",
+            "e1d5740cd546a4ca"
+        ],
+        "x": 15,
+        "y": 865,
+        "w": 690,
+        "h": 130
+    },
+    {
+        "id": "a1b2c3d4e5f60013",
+        "type": "comment",
+        "z": "f1a0000000000001",
+        "name": "Retour vers l'ESP32 : les curseurs envoient le seuil {\"lt\":..} ou {\"ht\":..}",
+        "info": "Le Topic de chaque curseur (lt ou ht) donne la clé de la commande. L'ESP32 refuse les seuils hors 15-35 °C ou si seuil bas >= seuil haut ; les seuils appliqués s'affichent dans les textes Seuil bas / Seuil haut.",
+        "x": 345,
+        "y": 840,
+        "wires": []
+    },
+    {
         "id": "8aa220902773db44",
         "type": "ui_tab",
         "name": "ESP32",
@@ -203,13 +306,14 @@
         "trim": true,
         "base64": false,
         "tls": "",
-        "x": 140,
+        "x": 150,
         "y": 120,
         "wires": [
             [
                 "f1a0000000000003"
             ]
-        ]
+        ],
+        "g": "a1b2c3d4e5f60001"
     },
     {
         "id": "f1a0000000000003",
@@ -219,14 +323,15 @@
         "property": "payload",
         "action": "obj",
         "pretty": false,
-        "x": 330,
+        "x": 340,
         "y": 120,
         "wires": [
             [
                 "d21ae1b7b12f8fa0",
                 "18e4be6e4ebddcc8"
             ]
-        ]
+        ],
+        "g": "a1b2c3d4e5f60001"
     },
     {
         "id": "36894a01d7cb42c1",
@@ -253,8 +358,9 @@
         "diff": false,
         "className": "",
         "x": 850,
-        "y": 40,
-        "wires": []
+        "y": 240,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "5e0f2e5fb7d06661",
@@ -281,8 +387,9 @@
         "diff": false,
         "className": "",
         "x": 850,
-        "y": 120,
-        "wires": []
+        "y": 320,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "e6ff159e0445e90d",
@@ -302,8 +409,9 @@
         "fontSize": 16,
         "color": "#000000",
         "x": 830,
-        "y": 160,
-        "wires": []
+        "y": 360,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "897c459585dae392",
@@ -344,10 +452,11 @@
         "useDifferentColor": false,
         "className": "",
         "x": 900,
-        "y": 80,
+        "y": 280,
         "wires": [
             []
-        ]
+        ],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "c4014069ca7bf18c",
@@ -377,8 +486,9 @@
         "showGlow": true,
         "name": "Feu",
         "x": 830,
-        "y": 220,
-        "wires": []
+        "y": 420,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "f8456f238a3175f9",
@@ -408,8 +518,9 @@
         "showGlow": true,
         "name": "Clim",
         "x": 830,
-        "y": 260,
-        "wires": []
+        "y": 460,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "6bdf934e648d1437",
@@ -439,8 +550,9 @@
         "showGlow": true,
         "name": "Radiateur",
         "x": 840,
-        "y": 300,
-        "wires": []
+        "y": 500,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "3e56d5ad125022e4",
@@ -467,8 +579,9 @@
         "diff": false,
         "className": "",
         "x": 850,
-        "y": 360,
-        "wires": []
+        "y": 560,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "d21ae1b7b12f8fa0",
@@ -484,8 +597,9 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 540,
-        "y": 40,
-        "wires": []
+        "y": 120,
+        "wires": [],
+        "g": "a1b2c3d4e5f60001"
     },
     {
         "id": "18e4be6e4ebddcc8",
@@ -500,7 +614,7 @@
         "finalize": "",
         "libs": [],
         "x": 560,
-        "y": 220,
+        "y": 420,
         "wires": [
             [
                 "36894a01d7cb42c1"
@@ -541,7 +655,8 @@
             [
                 "a7c3e1f0b2d40006"
             ]
-        ]
+        ],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "a7c3e1f0b2d40002",
@@ -561,8 +676,9 @@
         "fontSize": 16,
         "color": "#000000",
         "x": 840,
-        "y": 420,
-        "wires": []
+        "y": 620,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "a7c3e1f0b2d40003",
@@ -582,8 +698,9 @@
         "fontSize": 16,
         "color": "#000000",
         "x": 840,
-        "y": 460,
-        "wires": []
+        "y": 660,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "a7c3e1f0b2d40004",
@@ -603,8 +720,9 @@
         "fontSize": 16,
         "color": "#000000",
         "x": 830,
-        "y": 500,
-        "wires": []
+        "y": 700,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "a7c3e1f0b2d40005",
@@ -624,8 +742,9 @@
         "fontSize": 16,
         "color": "#000000",
         "x": 840,
-        "y": 540,
-        "wires": []
+        "y": 740,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "a7c3e1f0b2d40006",
@@ -645,8 +764,9 @@
         "fontSize": 16,
         "color": "#000000",
         "x": 860,
-        "y": 580,
-        "wires": []
+        "y": 780,
+        "wires": [],
+        "g": "a1b2c3d4e5f60002"
     },
     {
         "id": "5d803223d09d10c3",
@@ -668,12 +788,13 @@
         "step": "0.5",
         "className": "",
         "x": 140,
-        "y": 680,
+        "y": 900,
         "wires": [
             [
                 "77e4b017d17b7919"
             ]
-        ]
+        ],
+        "g": "a1b2c3d4e5f60003"
     },
     {
         "id": "fb7e7f7bf3365834",
@@ -695,12 +816,13 @@
         "step": "0.5",
         "className": "",
         "x": 140,
-        "y": 740,
+        "y": 960,
         "wires": [
             [
                 "77e4b017d17b7919"
             ]
-        ]
+        ],
+        "g": "a1b2c3d4e5f60003"
     },
     {
         "id": "77e4b017d17b7919",
@@ -715,12 +837,13 @@
         "finalize": "",
         "libs": [],
         "x": 370,
-        "y": 700,
+        "y": 920,
         "wires": [
             [
                 "e1d5740cd546a4ca"
             ]
-        ]
+        ],
+        "g": "a1b2c3d4e5f60003"
     },
     {
         "id": "e1d5740cd546a4ca",
@@ -734,7 +857,8 @@
         "end": true,
         "tls": "",
         "x": 610,
-        "y": 700,
-        "wires": []
+        "y": 920,
+        "wires": [],
+        "g": "a1b2c3d4e5f60003"
     }
 ]
