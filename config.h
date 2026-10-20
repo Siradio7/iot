@@ -42,6 +42,9 @@
 // Mesure
 #define PERIODE_MESURE 1000          // ms entre deux mesures
 
+// LittleFS : formater la partition seulement si elle ne peut pas etre montee
+#define FORMAT_LITTLEFS_IF_FAILED true
+
 // Commandes recues sur le port serie (une ligne JSON)
 #define COMMAND_BUFFER_SIZE 64       // caracteres maximum par commande
 
@@ -56,8 +59,12 @@
 #define LOCATION_LAT     43.62454
 #define LOCATION_LON     7.050628
 
-// Modele JSON du cours : section net (pas de WiFi, champs a "NOP")
+// Modele JSON du cours : section net ("NOP" si le WiFi n'est pas connecte)
 #define NET_NOP "NOP"
+
+// WiFi (points d'acces dans wifi_utils.cpp et wifi_secrets.h)
+#define WIFI_HOSTNAME "ESP32-GRF"        // nom de l'ESP sur le reseau (sans espace)
+#define WIFI_RESTART_IF_FAILED false     // true : redemarrer si aucun point d'acces (comme le cours)
 
 // Modele JSON du cours : section reporthost (descriptif, non utilise par le bridge)
 #define REPORT_TARGET_IP   "127.0.0.1"

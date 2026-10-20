@@ -3,6 +3,7 @@
 #include "config.h"
 
 #include <Arduino.h>
+#include <WiFi.h>
 
 JsonDocument makeJSON_fromstatus(SensorData data, EtatRegulation etat, int fanSpeed, bool fireDetected) {
     JsonDocument doc;
@@ -33,10 +34,12 @@ JsonDocument makeJSON_fromstatus(SensorData data, EtatRegulation etat, int fanSp
     info["loc"] = INFO_LOC;
 
     JsonObject net = doc["net"].to<JsonObject>();
-    net["uptime"] = NET_NOP;
-    net["ssid"] = NET_NOP;
-    net["mac"] = NET_NOP;
-    net["ip"] = NET_NOP;
+    // Section net : valeurs reelles si le WiFi est connecte, "NOP" sinon
+    bool wifiConnecte = (WiFi.status() == WL_CONNECTED);
+    net["uptime"] = String(millis() / 1000);          // secondes depuis le demarrage
+    net["ssid"] = wifiConnecte ? WiFi.SSID() : String(NET_NOP);
+    net["mac"] = wifiConnecte ? WiFi.macAddress() : String(NET_NOP);
+    net["ip"] = wifiConnecte ? WiFi.localIP().toString() : String(NET_NOP);
 
     JsonObject reporthost = doc["reporthost"].to<JsonObject>();
     reporthost["target_ip"] = REPORT_TARGET_IP;

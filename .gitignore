@@ -5,3 +5,8 @@ build/
 nodered/data/*
 !nodered/data/flows.json
 .env
+# Mot de passe WiFi personnel (modele : wifi_secrets.example.h)
+wifi_secrets.h
+
+# Notes de travail avec Claude (locales)
+CLAUDE.md

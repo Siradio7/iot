@@ -10,12 +10,29 @@
 #include "led_strip.h"
 #include "make_json.h"
 #include "command.h"
+#include "littlefs_utils.h"
+#include "wifi_utils.h"
 
 EtatRegulation etatCourant = REPOS;  // conserve d'une mesure a l'autre pour l'hysteresis
 unsigned long dernierePrise = 0;     // instant (ms) de la derniere mesure
 
 void setup() {
     Serial.begin(SERIAL_BAUDRATE);
+
+    // Fichiers en memoire flash (dossier data/ envoye avec "Upload LittleFS") :
+    // la liste est affichee une seule fois, au demarrage
+    if (littlefs_init()) {
+        littlefs_list_dir("/", 1);
+    }
+
+    // WiFi : connexion au meilleur point d'acces connu (wificonnect_multi du cours).
+    // Sans WiFi, la regulation fonctionne quand meme (voir WIFI_RESTART_IF_FAILED).
+    wificonnect_multi(WIFI_HOSTNAME);
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.print("\nWiFi connected : yes ! \n");
+    } else {
+        Serial.print("\nWiFi connected : no ! \n");
+    }
 
     sensor_service_init();
     led_init();

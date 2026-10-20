@@ -163,6 +163,11 @@ iot/
 ├── sensor_data.h
 ├── make_json.h/.cpp
 ├── command.h/.cpp
+├── littlefs_utils.h/.cpp    système de fichiers LittleFS
+├── wifi_utils.h/.cpp        connexion WiFi (wificonnect_multi du cours)
+├── wifi_secrets.example.h   modèle du fichier local wifi_secrets.h (mot de passe WiFi, ignoré par Git)
+├── data/                    fichiers envoyés dans la mémoire flash de l'ESP (LittleFS)
+│   └── index.html
 ├── validator/               validateur JSON (Node.js, Ajv)
 │   ├── schema.json
 │   ├── validator.js
@@ -212,6 +217,8 @@ Le capteur de luminosité est **inversé** : plus de lumière donne une valeur A
 | `sensor_data.h` | Structure `SensorData` (température, luminosité moyennée). |
 | `make_json` | Construction du statut JSON du cours avec ArduinoJson. |
 | `command` | Lecture non bloquante des commandes JSON reçues sur le port série et application des seuils. |
+| `littlefs_utils` | Montage de LittleFS et liste des fichiers présents (fonction `listDir` de l'exemple Espressif). |
+| `wifi_utils` | Connexion WiFi au meilleur point d'accès connu (`wificonnect_multi` du cours) et affichage de son état. |
 
 ## Fonctionnement général
 
@@ -302,6 +309,26 @@ Les tests sont décrits dans le [guide de test](#4-incendie--led-2-et-arrêt-du-
 - un changement brutal de la lumière du jour (nuage qui s'écarte) dans une pièce déjà au-dessus de 28 °C peut donner une fausse alerte ;
 - 28 °C est volontairement bas pour pouvoir tester en chauffant le capteur à la main ; un détecteur réel utiliserait plutôt 45 à 50 °C, ou une hausse rapide de la température, et d'autres capteurs (fumée, flamme infrarouge).
 
+### Fichiers en mémoire flash (LittleFS)
+
+Le dossier `data/` (à côté de `iot.ino`) est copié dans la mémoire flash de l'ESP avec le plugin [arduino-littlefs-upload](https://github.com/earlephilhower/arduino-littlefs-upload/releases) (fichier `.vsix` dans `~/.arduinoIDE/plugins/`).
+
+1. Une seule fenêtre Arduino IDE ouverte (`iot`), port sélectionné dans **Tools → Port**, moniteur série fermé et bridge arrêté.
+2. **Tools → Partition Scheme** : *Default 4MB with spiffs* (la partition sert à LittleFS).
+3. ⌘⇧P → **Upload LittleFS to Pico/ESP8266/ESP32**, puis **Téléverser** le programme (le programme n'efface pas les fichiers).
+
+Au démarrage, l'ESP affiche la liste des fichiers (`Listing directory: /`, `FILE: index.html`). « Upload LittleFS » remplace toute la partition par le contenu de `data/`.
+
+### Connexion WiFi
+
+Au démarrage, `wificonnect_multi` (code du cours `tpwifi.pdf`) essaie les points d'accès connus et se connecte à celui qui a le meilleur signal. Il affiche `WiFi connected : yes !` puis l'adresse IP, l'adresse MAC, le SSID et la force du signal.
+
+- Les points d'accès du cours (`GMAP`, `IOT`, `Bbox-…`) sont dans `wifi_utils.cpp` et ne doivent pas être supprimés (utilisés pour l'évaluation).
+- Point d'accès personnel : copier `wifi_secrets.example.h` en `wifi_secrets.h` et y mettre son SSID et son mot de passe. Ce fichier est ignoré par Git.
+- L'ESP32 ne voit que le WiFi **2,4 GHz** (partage de connexion iPhone : activer « Maximiser la compatibilité ») ; le SSID ne doit pas contenir d'espace ; le WiFi de l'université n'est pas utilisable.
+- Sans point d'accès, la régulation fonctionne quand même (`WIFI_RESTART_IF_FAILED` à `false` dans `config.h` ; le code du cours redémarre l'ESP à la place). La connexion prend jusqu'à 10 s au démarrage.
+- Corrections apportées au code du cours pour le paquet ESP32 3.x : `WiFi.SSID().c_str()` dans les `printf`, et un cas `default` dans `translateEncryptionType` (sinon erreur de compilation).
+
 ### JSON envoyé par l'ESP
 
 Chaque mesure produit une ligne JSON au format imposé par le cours, construite avec **ArduinoJson** (`make_json.cpp`). Exemple, mis en forme pour la lecture (l'ESP l'envoie sur une seule ligne) :
@@ -328,9 +355,9 @@ Chaque mesure produit une ligne JSON au format imposé par le cours, construite 
 | `status.fanspeed` | PWM du ventilateur (0 à 255) |
 | `regul.lt` / `regul.ht` | seuils bas / haut **actuellement appliqués** |
 | `location`, `info`, `reporthost` | constantes définies dans `config.h` |
-| `net` | `NOP` : le Wi-Fi n'est pas utilisé |
+| `net` | si le WiFi est connecté : `ssid`, `ip`, `mac` réels ; sinon `NOP`. `uptime` : secondes depuis le démarrage |
 
-Choix d'interprétation du modèle (à confirmer avec l'enseignant) : la signification de `status.regul`, `fanspeed` en PWM plutôt qu'en tours par minute, `net` à `NOP`, `reporthost` aux valeurs de l'exemple du cours (descriptif, non utilisé par le bridge).
+Choix d'interprétation du modèle (à confirmer avec l'enseignant) : la signification de `status.regul`, `fanspeed` en PWM plutôt qu'en tours par minute, `net` à `NOP` sans WiFi, `reporthost` aux valeurs de l'exemple du cours (descriptif, non utilisé par le bridge).
 
 ## Validateur JSON
 
