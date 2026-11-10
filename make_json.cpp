@@ -1,6 +1,7 @@
 #include "make_json.h"
 
 #include "config.h"
+#include "reporting.h"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -42,9 +43,9 @@ JsonDocument makeJSON_fromstatus(SensorData data, EtatRegulation etat, int fanSp
     net["ip"] = wifiConnecte ? WiFi.localIP().toString() : String(NET_NOP);
 
     JsonObject reporthost = doc["reporthost"].to<JsonObject>();
-    reporthost["target_ip"] = REPORT_TARGET_IP;
-    reporthost["target_port"] = REPORT_TARGET_PORT;
-    reporthost["sp"] = REPORT_SP;
+    reporthost["target_ip"] = reporting_ip();
+    reporthost["target_port"] = reporting_port();
+    reporthost["sp"] = reporting_period();
 
     return doc;
 }

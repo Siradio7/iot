@@ -66,9 +66,15 @@
 #define WIFI_HOSTNAME "ESP32-GRF"        // nom de l'ESP sur le reseau (sans espace)
 #define WIFI_RESTART_IF_FAILED false     // true : redemarrer si aucun point d'acces (comme le cours)
 
-// Modele JSON du cours : section reporthost (descriptif, non utilise par le bridge)
-#define REPORT_TARGET_IP   "127.0.0.1"
+// Serveur HTTP de l'ESP (page d'administration et API)
+#define HTTP_PORT 80
+
+// Reporting periodique (POST /esp?mac=... vers le serveur de donnees) :
+// valeurs au demarrage, modifiables depuis la page d'administration (POST /target).
+// sp = periode en secondes, 0 = pas de reporting. 0.0.0.0 = aucun serveur choisi.
+#define REPORT_TARGET_IP   "0.0.0.0"
 #define REPORT_TARGET_PORT 1880
-#define REPORT_SP          2
+#define REPORT_SP          0
+#define REPORT_TIMEOUT     1500         // ms : delai maximum d'une requete POST (loop bloquee pendant ce temps)
 
 #endif
