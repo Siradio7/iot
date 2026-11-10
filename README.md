@@ -20,7 +20,7 @@ Sommaire :
 - [Démarrage rapide](#démarrage-rapide-macos)
 - [Guide de test (critères d'évaluation)](#guide-de-test-critères-dévaluation)
 - [Structure du projet](#structure-du-projet) et [rôle des fichiers](#rôle-des-fichiers)
-- [Firmware Arduino](#firmware-arduino) : [régulation](#régulation), [détection d'incendie](#détection-dincendie), [JSON envoyé](#json-envoyé-par-lesp)
+- [Firmware Arduino](#firmware-arduino) : [régulation](#régulation), [détection d'incendie](#détection-dincendie), [serveur HTTP](#serveur-http-de-lesp-tp-http), [JSON envoyé](#json-envoyé-par-lesp)
 - [Validateur JSON](#validateur-json)
 - [Bridge et Node-RED](#bridge-et-node-red) : [tableau de bord](#tableau-de-bord), [retour vers l'ESP](#retour-vers-lesp-seuils-depuis-le-dashboard)
 - [Dépannage](#dépannage)
@@ -165,9 +165,13 @@ iot/
 ├── command.h/.cpp
 ├── littlefs_utils.h/.cpp    système de fichiers LittleFS
 ├── wifi_utils.h/.cpp        connexion WiFi (wificonnect_multi du cours)
+├── http_server.h/.cpp       serveur HTTP asynchrone : page d'administration et API
+├── reporting.h/.cpp         reporting périodique : POST /esp?mac=... vers Node-RED
+├── manual_control.h/.cpp    forçage manuel chauffage / climatisation (/set)
 ├── wifi_secrets.example.h   modèle du fichier local wifi_secrets.h (mot de passe WiFi, ignoré par Git)
 ├── data/                    fichiers envoyés dans la mémoire flash de l'ESP (LittleFS)
-│   └── index.html
+│   ├── index.html           page d'administration (placeholders %...%)
+│   └── esp.css
 ├── validator/               validateur JSON (Node.js, Ajv)
 │   ├── schema.json
 │   ├── validator.js
@@ -218,6 +222,9 @@ Le capteur de luminosité est **inversé** : plus de lumière donne une valeur A
 | `make_json` | Construction du statut JSON du cours avec ArduinoJson. |
 | `command` | Lecture non bloquante des commandes JSON reçues sur le port série et application des seuils. |
 | `littlefs_utils` | Montage de LittleFS et liste des fichiers présents (fonction `listDir` de l'exemple Espressif). |
+| `http_server` | Serveur ESPAsyncWebServer : `GET /`, `POST /target`, `GET /value`, `GET /set`. Les handlers ne lisent jamais un capteur : ils renvoient la dernière mesure mémorisée par `loop()`. |
+| `reporting` | Cible du reporting (ip, port, période) et envoi du `POST /esp?mac=...` depuis `loop()`. |
+| `manual_control` | Forçage `on` / `off` / `auto` du chauffage et de la climatisation. |
 | `wifi_utils` | Connexion WiFi au meilleur point d'accès connu (`wificonnect_multi` du cours) et affichage de son état. |
 
 ## Fonctionnement général
@@ -245,6 +252,7 @@ Le capteur de luminosité est **inversé** : plus de lumière donne une valeur A
 
 - Arduino IDE 2.x et le paquet **esp32 by Espressif Systems**, version 3.x (le code utilise l'API PWM `ledcAttach` du core ESP32 3.x).
 - Bibliothèques Arduino : `OneWire`, `DallasTemperature`, `Adafruit NeoPixel` et `ArduinoJson` version 7.
+- Serveur HTTP : `ESPAsyncWebServer` et `AsyncTCP` (organisation [ESP32Async](https://github.com/ESP32Async), à installer depuis les archives GitHub dans `~/Documents/Arduino/libraries`, puis rouvrir l'IDE). `HTTPClient` est fourni avec le paquet ESP32.
 - Une carte ESP32 compatible avec les GPIO déclarés dans `pins.h`.
 
 Installer le paquet ESP32 depuis **Outils → Type de carte → Gestionnaire de cartes**, puis les bibliothèques depuis **Croquis → Inclure une bibliothèque → Gérer les bibliothèques**. Sélectionner le bon modèle de carte et le bon port dans le menu **Outils**.
@@ -329,6 +337,37 @@ Au démarrage, `wificonnect_multi` (code du cours `tpwifi.pdf`) essaie les point
 - Sans point d'accès, la régulation fonctionne quand même (`WIFI_RESTART_IF_FAILED` à `false` dans `config.h` ; le code du cours redémarre l'ESP à la place). La connexion prend jusqu'à 10 s au démarrage.
 - Corrections apportées au code du cours pour le paquet ESP32 3.x : `WiFi.SSID().c_str()` dans les `printf`, et un cas `default` dans `translateEncryptionType` (sinon erreur de compilation).
 
+### Serveur HTTP de l'ESP (TP HTTP)
+
+Quand le WiFi est connecté, l'ESP démarre un serveur HTTP sur le port 80 (son adresse IP est affichée au démarrage). Les fichiers `data/index.html` et `data/esp.css` doivent avoir été envoyés avec [Upload LittleFS](#fichiers-en-mémoire-flash-littlefs).
+
+| Requête | Rôle |
+| --- | --- |
+| `GET /` | Page d'administration : identité, lieu, réseau, capteurs, actionneurs, seuils, formulaire de reporting. Les `%PLACEHOLDERS%` sont remplacés par `processor()` ; température, lumière et incendie sont ensuite rafraîchis toutes les 2 s par `fetch('/value?...')`. |
+| `POST /target` | Paramètres `ip`, `port`, `sp` (période en secondes, `0` = arrêt). Réponse : la page mise à jour, ou `400` si une valeur est invalide. |
+| `GET /value?temperature&light` | Valeurs demandées en JSON : `{"temperature":23.4,"light":843}`. Noms possibles : `temperature`, `light`, `fire`, `ht`, `lt`. Nom inconnu : `404`. `503` avant la première mesure. |
+| `GET /set?cool=on` | Paramètres : `cool` et `heat` (`on`, `off`, `auto`), `lt` et `ht` (seuils, mêmes règles que le dashboard). Paramètre inconnu : `404` ; valeur invalide : `400`, sans rien modifier. |
+
+Le forçage est repris par la régulation à chaque mesure : `cool=on` allume la climatisation (LED verte, ventilateur, bande rouge) quelle que soit la température, `cool=off` l'éteint même si elle devrait fonctionner, `auto` rend la main à la régulation. La climatisation l'emporte sur le chauffage s'ils sont forcés tous les deux. L'incendie arrête toujours le ventilateur.
+
+**Reporting périodique.** Une fois la cible enregistrée avec une période `sp` > 0, `loop()` envoie le JSON du statut (même format que sur le port série) par `POST http://<ip>:<port>/esp?mac=<adresse MAC>` avec `Content-Type: application/json`, au rythme des mesures (précision d'une seconde). La requête bloque `loop()` au plus `REPORT_TIMEOUT` ms (1,5 s) si le serveur ne répond pas. Au démarrage, `sp` vaut 0 : aucun reporting. La section `reporthost` du JSON reflète la cible courante.
+
+**Côté Node-RED** (groupe « Réception HTTP ») : `http in` (POST `/esp`) → `Extraction statut` (les mêmes widgets que via le bridge), un nœud debug (« JSON reçu en HTTP ») et `http response` (200). Dans le formulaire de l'ESP, mettre l'**adresse IP du Mac** (pas `localhost` : c'est l'ESP qui émet), port `1880`.
+
+Tests avec cURL (remplacer `192.168.1.100` par l'IP de l'ESP) :
+
+```bash
+curl http://192.168.1.100/value?temperature\&light
+curl -v "http://192.168.1.100/set?cool=on"
+curl "http://192.168.1.100/set?cool=auto&lt=22&ht=25"
+curl -i "http://192.168.1.100/value?inconnu"                               # 404
+curl -d "ip=192.168.1.20&port=1880&sp=5" http://192.168.1.100/target       # active le reporting
+curl -v -H "Content-type: application/json" -d @validator/examples/valid_esp.json \
+     "http://localhost:1880/esp?mac=38:14:28:db:56:9d"                      # simule l'ESP côté Node-RED
+```
+
+Le reporting HTTP et le lien série (bridge) alimentent le même dashboard ; avec les deux actifs, les widgets reçoivent les deux flux.
+
 ### JSON envoyé par l'ESP
 
 Chaque mesure produit une ligne JSON au format imposé par le cours, construite avec **ArduinoJson** (`make_json.cpp`). Exemple, mis en forme pour la lecture (l'ESP l'envoie sur une seule ligne) :
@@ -341,7 +380,7 @@ Chaque mesure produit une ligne JSON au format imposé par le cours, construite 
   "regul": {"lt": 25, "ht": 26},
   "info": {"ident": "ESP32", "user": "GR_F", "loc": "A Biot"},
   "net": {"uptime": "NOP", "ssid": "NOP", "mac": "NOP", "ip": "NOP"},
-  "reporthost": {"target_ip": "127.0.0.1", "target_port": 1880, "sp": 2}
+  "reporthost": {"target_ip": "0.0.0.0", "target_port": 1880, "sp": 0}
 }
 ```
 
@@ -354,10 +393,11 @@ Chaque mesure produit une ligne JSON au format imposé par le cours, construite 
 | `status.heat` / `status.cold` | `ON` / `OFF` |
 | `status.fanspeed` | PWM du ventilateur (0 à 255) |
 | `regul.lt` / `regul.ht` | seuils bas / haut **actuellement appliqués** |
-| `location`, `info`, `reporthost` | constantes définies dans `config.h` |
+| `location`, `info` | constantes définies dans `config.h` |
+| `reporthost` | cible courante du reporting HTTP (`0.0.0.0`, port 1880, `sp` = 0 au démarrage) |
 | `net` | si le WiFi est connecté : `ssid`, `ip`, `mac` réels ; sinon `NOP`. `uptime` : secondes depuis le démarrage |
 
-Choix d'interprétation du modèle (à confirmer avec l'enseignant) : la signification de `status.regul`, `fanspeed` en PWM plutôt qu'en tours par minute, `net` à `NOP` sans WiFi, `reporthost` aux valeurs de l'exemple du cours (descriptif, non utilisé par le bridge).
+Choix d'interprétation du modèle (à confirmer avec l'enseignant) : la signification de `status.regul`, `fanspeed` en PWM plutôt qu'en tours par minute, `net` à `NOP` sans WiFi, `reporthost` = cible du reporting HTTP.
 
 ## Validateur JSON
 

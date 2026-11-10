@@ -1,1 +1,91 @@
-<!DOCTYPE html><html><body><h1>Hello world !</h1></body></html>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="esp.css">
+  <title>ESP32 %HOSTNAME%</title>
+</head>
+<body>
+  <h1>ESP32 : administration</h1>
+  <!-- Les mots entre pourcentages sont remplaces par l'ESP (processor() dans http_server.cpp) -->
+
+  <h3>Identité</h3>
+  <table>
+    <tr><td>Identifiant</td><td>%IDENT%</td></tr>
+    <tr><td>Nom réseau</td><td>%HOSTNAME%</td></tr>
+    <tr><td>Uptime</td><td>%UPTIME% s</td></tr>
+  </table>
+
+  <h3>Coordonnées physiques</h3>
+  <table>
+    <tr><td>Lieu</td><td>%WHERE%</td></tr>
+    <tr><td>GPS (lat, lon)</td><td>%GPS%</td></tr>
+  </table>
+
+  <h3>Connexion réseau</h3>
+  <table>
+    <tr><td>WiFi SSID</td><td>%SSID%</td></tr>
+    <tr><td>Adresse MAC</td><td>%MAC%</td></tr>
+    <tr><td>Adresse IP</td><td>%IP%</td></tr>
+    <tr><td>Signal</td><td>%RSSI% dBm</td></tr>
+  </table>
+
+  <h3>Capteurs et actionneurs</h3>
+  <div class="grid-container">
+    <div class="grid-item"><span class="label">Température</span><br>
+      <span class="value" id="temperature">%TEMPERATURE%</span> <sup>°C</sup></div>
+    <div class="grid-item"><span class="label">Lumière</span><br>
+      <span class="value" id="light">%LIGHT%</span> <sup>ADC</sup></div>
+    <div class="grid-item"><span class="label">Incendie</span><br>
+      <span class="value" id="fire">%FIRE%</span></div>
+  </div>
+  <table>
+    <tr><td>Climatisation (cooler)</td><td>%COOLER%</td><td>forçage : %COOL_MODE%</td></tr>
+    <tr><td>Chauffage (heater)</td><td>%HEATER%</td><td>forçage : %HEAT_MODE%</td></tr>
+    <tr><td>Ventilateur (PWM 0 à 255)</td><td>%FAN%</td><td></td></tr>
+  </table>
+
+  <h3>Seuils de régulation</h3>
+  <table>
+    <tr><td>Seuil bas</td><td>%LT% °C</td></tr>
+    <tr><td>Seuil haut</td><td>%HT% °C</td></tr>
+  </table>
+
+  <h3>Reporting périodique vers</h3>
+  <form action="/target" method="post">
+    <label for="ip">Adresse IP du serveur :</label>
+    <input type="text" id="ip" name="ip" placeholder="%PRT_IP%" value="%PRT_IP%"><br>
+    <label for="port">Port :</label>
+    <input type="text" id="port" name="port" placeholder="%PRT_PORT%" value="%PRT_PORT%"><br>
+    <label for="sp">Période d'échantillonnage (secondes, 0 = arrêt) :</label>
+    <input type="text" id="sp" name="sp" placeholder="%PRT_T%" value="%PRT_T%"><br>
+    <input type="submit" value="Changer le serveur de reporting">
+  </form>
+
+  <p class="help">API : <code>/value?temperature&amp;light</code> ·
+     <code>/set?cool=on</code> · <code>/set?lt=22&amp;ht=25</code></p>
+
+  <script>
+    // Rafraîchit température, lumière et incendie sans recharger la page.
+    // Les autres valeurs ne changent qu'au rechargement (placeholders).
+    function refresh() {
+      fetch('/value?temperature&light&fire')
+        .then(function (response) {
+          if (!response.ok) { throw new Error('HTTP ' + response.status); }
+          return response.json();
+        })
+        .then(function (v) {
+          document.getElementById('temperature').innerHTML = v.temperature.toFixed(2);
+          document.getElementById('light').innerHTML = v.light;
+          document.getElementById('fire').innerHTML = v.fire ? 'OUI' : 'non';
+        })
+        .catch(function (error) { console.log(error); });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      setInterval(refresh, 2000);
+    });
+  </script>
+</body>
+</html>

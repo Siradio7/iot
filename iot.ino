@@ -12,6 +12,9 @@
 #include "command.h"
 #include "littlefs_utils.h"
 #include "wifi_utils.h"
+#include "http_server.h"
+#include "reporting.h"
+#include "manual_control.h"
 
 EtatRegulation etatCourant = REPOS;  // conserve d'une mesure a l'autre pour l'hysteresis
 unsigned long dernierePrise = 0;     // instant (ms) de la derniere mesure
@@ -38,6 +41,10 @@ void setup() {
     led_init();
     fan_init();
     led_strip_init();
+    reporting_init();
+
+    // Serveur HTTP : page d'administration et API (necessite LittleFS et le WiFi)
+    http_server_init();
 }
 
 void loop() {
@@ -60,13 +67,16 @@ void loop() {
         return;
     }
 
-    // Decision de regulation (chauffage / repos / climatisation)
+    // Decision de regulation (chauffage / repos / climatisation).
+    // etatCourant garde la decision automatique pour l'hysteresis ; etat tient compte
+    // d'un eventuel forcage demande par HTTP (/set?cool=on).
     etatCourant = sensor_service_decide(data.temperature, etatCourant);
+    EtatRegulation etat = manual_apply(etatCourant);
 
     // Le ventilateur ne tourne qu'en climatisation, avec une vitesse progressive
     int vitesse = 0;
 
-    if (etatCourant == CLIMATISATION) {
+    if (etat == CLIMATISATION) {
         vitesse = sensor_service_fan_speed(data.temperature);
     }
 
@@ -78,14 +88,14 @@ void loop() {
     }
 
     // Actionneurs
-    led_climatisation(etatCourant == CLIMATISATION);
-    led_radiateur(etatCourant == CHAUFFAGE);
+    led_climatisation(etat == CLIMATISATION);
+    led_radiateur(etat == CHAUFFAGE);
     led_alerte_feu(incendie);
     fan_set_speed(vitesse);
 
     // Bande LED : couleur selon la temperature, avec l'hysteresis de la regulation
     // (rouge > seuil haut, orange entre les seuils, vert < seuil bas)
-    switch (etatCourant) {
+    switch (etat) {
         case CLIMATISATION:
             led_strip_set_color(STRIP_RED);
             break;
@@ -98,8 +108,18 @@ void loop() {
             break;
     }
 
+    // Derniere mesure pour les handlers HTTP (qui ne lisent jamais les capteurs)
+    http_server_update(data, etat, vitesse, incendie);
+
     // Journalisation (une ligne JSON par mesure)
-    JsonDocument status = makeJSON_fromstatus(data, etatCourant, vitesse, incendie);
+    JsonDocument status = makeJSON_fromstatus(data, etat, vitesse, incendie);
     serializeJson(status, Serial);
     Serial.println();
+
+    // Reporting periodique vers le serveur choisi dans la page d'administration
+    if (reporting_due()) {
+        String body;
+        serializeJson(status, body);
+        reporting_send(body);
+    }
 }
